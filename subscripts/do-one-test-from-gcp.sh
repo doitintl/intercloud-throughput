@@ -45,6 +45,7 @@ DATE_S=$( date -u +"%Y-%m-%dT%H:%M:%SZ" )
 # The "return value"
 jq --null-input -c \
  '{"datetime": env.DATE_S,
+  "run_id": env.RUN_ID,
   "from":  {"cloud": env.CLIENT_CLOUD, "region":env.CLIENT_REGION},
   "to": {"cloud": env.SERVER_CLOUD, "region": env.SERVER_REGION },
   "bitrate_Bps": env.BITRATE,

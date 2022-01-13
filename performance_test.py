@@ -89,7 +89,7 @@ def run_tests(run_id, vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]
 
         script = src_region.script_for_test_from_region()
         process_stdout = run_subprocess(script, env)
-        logging.info("Test result from %s to %s is %s", src, dst, process_stdout)
+        logging.info("Test %s result from %s to %s is %s", run_id, src, dst, process_stdout)
         test_result = process_stdout + "\n"
 
         # We write separate files for each test to avoid race conditions, since tests happen in parallel.
@@ -167,7 +167,7 @@ def main():
 
     regions = [
         (Cloud.GCP, "us-east1", gcp_project),
-        # (Cloud.AWS, "us-east-1")
+        (Cloud.AWS, "us-east-1")
     ]
     do_all(run_id, [CloudRegion(*r) for r in regions])
 
