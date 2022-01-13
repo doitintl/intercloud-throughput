@@ -8,3 +8,6 @@
 results.*
 TMP*
 TEMP*
+
+results*/
+__pycache__/

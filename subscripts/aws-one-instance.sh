@@ -3,7 +3,6 @@
 set -x
 set -e
 set -u
->&2 date -u +"%H:%M:%SZ"
 
 # Check that variables are set
 >&2 echo $RUN_ID
@@ -11,7 +10,7 @@ set -u
 >&2 echo $REGION
 >&2 echo $SG
 >&2 echo $BASE_KEYNAME
-
+>&2 echo $INIT_SCRIPT
 
 NAME="$CLIENTSVR-${REGION}-${RUN_ID}"
 REGION_KEYNAME=${BASE_KEYNAME}-${REGION}
@@ -41,6 +40,8 @@ AMI=$(aws ec2 describe-images \
     jq -r '.Images | sort_by(.CreationDate) | last(.[]).ImageId'
   )
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+FULLPATH_INIT_SCRIPT=$( realpath $SCRIPT_DIR/../startup-scripts/$INIT_SCRIPT)
 
 CREATION_OUTPUT=$( aws ec2 run-instances \
   --region $REGION \
@@ -49,12 +50,12 @@ CREATION_OUTPUT=$( aws ec2 run-instances \
   --instance-type t2.nano \
   --key-name $REGION_KEYNAME \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME}},{Key=run-id,Value=${RUN_ID}}]" \
-   --user-data file://$INIT_SCRIPT
+   --user-data file://$FULLPATH_INIT_SCRIPT
 )
 
 INSTANCE_ID=$( echo "$CREATION_OUTPUT" | jq -r ".Instances[0].InstanceId" )
 
-#TARGET_STATE=running -- use that for describe-instances
+#TARGET_STATE=running -- use that for describe-instances, if you use that as below.
 TARGET_STATE="passed"
 STATUS="N/A"
 while [[ "$WAIT_FOR_INIT" == "true" && "$STATUS" != "\"$TARGET_STATE\"" ]]; do
@@ -80,6 +81,7 @@ PUBLIC_DNS=$(
 
 
 if [ -z "$PUBLIC_DNS" ]; then
+  >&2 echo "No public DNS?"
   exit 1
 fi
 
