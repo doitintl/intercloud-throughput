@@ -8,13 +8,13 @@ set -u
 >&2 echo $RUN_ID
 >&2 echo $REGION
 
-CLIENTSVR=server
+
 SG=intercloud
 BASE_KEYNAME=intercloudperf
 INIT_SCRIPT=aws-install-and-run-iperf-server.sh
 
 
-NAME="$CLIENTSVR-${REGION}-${RUN_ID}"
+NAME="${REGION}-${RUN_ID}"
 REGION_KEYNAME=${BASE_KEYNAME}-${REGION}
 REGION_KEYFILE=${REGION_KEYNAME}.pem
 
@@ -60,8 +60,8 @@ INSTANCE_ID=$( echo "$CREATION_OUTPUT" | jq -r ".Instances[0].InstanceId" )
 TARGET_STATE="passed"
 STATUS="N/A"
 
-# Try for up to approx 2 minutes
-N=24
+# Try for up to approx 3 minutes
+N=60
 while ((  $N > 0 )) && [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; do
    STATUS=$(
      aws ec2 describe-instance-status --region $REGION  --instance-ids "$INSTANCE_ID"  --query "InstanceStatuses[0].InstanceStatus.Details[0].Status"
@@ -70,10 +70,11 @@ while ((  $N > 0 )) && [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; do
 
    #[[ "$STATUS" == "\"terminated\"" ]] && exit 1
    N=$(( N-1 ))
-   sleep 4
+   sleep 2
 done
 
 if [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; then
+   >&2 echo "Did not initialize in time"
    exit 171
 fi
 

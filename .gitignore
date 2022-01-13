@@ -5,7 +5,7 @@
 .idea/
 *.pem
 
-results.*
+#results.*
 TMP*
 TEMP*
 
