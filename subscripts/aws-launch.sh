@@ -12,19 +12,18 @@ CLIENTSVR=server
 SG=intercloud
 BASE_KEYNAME=intercloudperf
 INIT_SCRIPT=aws-install-and-run-iperf-server.sh
-WAIT_FOR_INIT=true
+
 
 NAME="$CLIENTSVR-${REGION}-${RUN_ID}"
 REGION_KEYNAME=${BASE_KEYNAME}-${REGION}
 REGION_KEYFILE=${REGION_KEYNAME}.pem
-
 
 aws ec2 create-security-group --region $REGION --group-name $SG --description "For intercloud tests" > /dev/null || true
 aws ec2 authorize-security-group-ingress --region $REGION --group-name $SG --protocol tcp --port 22 --cidr 0.0.0.0/0 > /dev/null || true
 aws ec2 authorize-security-group-ingress --region $REGION --group-name $SG  --protocol tcp --port 5001 --cidr 0.0.0.0/0 > /dev/null ||true
 aws ec2 authorize-security-group-ingress --region $REGION --group-name $SG  --protocol icmp --port -1  --cidr 0.0.0.0/0 > /dev/null  ||true
 
-#if [ ! -f "$REGION_KEYFILE"  ]; then
+
 aws ec2 create-key-pair \
     --region $REGION \
     --key-name "$REGION_KEYNAME" \
@@ -32,7 +31,7 @@ aws ec2 create-key-pair \
     --output text > "$REGION_KEYFILE" || true
 
 chmod 400 "$REGION_KEYFILE" ||true
-#fi
+
 
 AMI=$(aws ec2 describe-images \
   --region $REGION \
@@ -60,18 +59,23 @@ INSTANCE_ID=$( echo "$CREATION_OUTPUT" | jq -r ".Instances[0].InstanceId" )
 #TARGET_STATE=running -- use that for describe-instances, if you use that as below.
 TARGET_STATE="passed"
 STATUS="N/A"
-while [[ "$WAIT_FOR_INIT" == "true" && "$STATUS" != "\"$TARGET_STATE\"" ]]; do
 
+# Try for up to approx 2 minutes
+N=24
+while ((  $N > 0 )) && [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; do
    STATUS=$(
      aws ec2 describe-instance-status --region $REGION  --instance-ids "$INSTANCE_ID"  --query "InstanceStatuses[0].InstanceStatus.Details[0].Status"
      # aws ec2 describe-instances --region eu-west-1 --instance-ids "$INSTANCE_ID" --query 'Reservations[0].Instances[0].State.Name'
     )
 
    #[[ "$STATUS" == "\"terminated\"" ]] && exit 1
-
+   N=$(( N-1 ))
    sleep 4
-
 done
+
+if [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; then
+   exit 171
+fi
 
 PUBLIC_DNS=$(
     aws ec2 describe-instances \

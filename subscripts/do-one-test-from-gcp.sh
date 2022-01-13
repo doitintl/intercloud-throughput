@@ -29,7 +29,7 @@ while ((  $N > 0 )) && [[ -z "$IPERF_OUTPUT" ]]; do
 done
 set -e
 if [[ -z "$IPERF_OUTPUT" ]]; then
-  exit 1
+  exit 172
 fi
 
 export BITRATE
