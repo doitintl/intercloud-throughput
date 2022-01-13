@@ -1,0 +1,9 @@
+{"datetime":"2022-01-13T14:38:14Z","from":{"cloud":"GCP","region":"us-east1"},"to":{"cloud":"GCP","region":"us-east1"},"bitrate_Bps":"1205862400","avgrtt":"0.756"}
+{"datetime":"2022-01-13T16:19:11Z","run_id":"ecxu","from":{"cloud":"AWS","region":"us-east-1"},"to":{"cloud":"GCP","region":"us-east1"},"bitrate_Bps":"164233216","avgrtt":"20.787"}
+{"datetime":"2022-01-13T16:48:10Z","run_id":"rffp","from":{"cloud":"GCP","region":"us-east1"},"to":{"cloud":"AWS","region":"us-east-1"},"bitrate_Bps":"103546880","avgrtt":"27.037"}
+{"datetime":"2022-01-13T17:20:13Z","run_id":"yzny","from":{"cloud":"GCP","region":"us-east4"},"to":{"cloud":"AWS","region":"us-west-2"},"bitrate_Bps":"100270080","avgrtt":""}
+{"datetime":"2022-01-13T18:40:26Z","run_id":"ufck","from":{"cloud":"GCP","region":"us-east4"},"to":{"cloud":"GCP","region":"us-east4"},"bitrate_Bps":"1204813824","avgrtt":"0.630"}
+{"datetime":"2022-01-13T18:45:36Z","run_id":"bmwj","from":{"cloud":"GCP","region":"us-east4"},"to":{"cloud":"GCP","region":"us-east4"},"bitrate_Bps":"1154744320","avgrtt":"0.468"}
+{"datetime":"2022-01-13T18:45:32Z","run_id":"bmwj","from":{"cloud":"AWS","region":"us-west-2"},"to":{"cloud":"GCP","region":"us-east4"},"bitrate_Bps":"46923776","avgrtt":"79.367"}
+{"datetime":"2022-01-13T18:45:31Z","run_id":"bmwj","from":{"cloud":"AWS","region":"us-west-2"},"to":{"cloud":"AWS","region":"us-west-2"},"bitrate_Bps":"46298955776","avgrtt":"0.021"}
+{"datetime":"2022-01-13T18:45:46Z","run_id":"bmwj","from":{"cloud":"GCP","region":"us-east4"},"to":{"cloud":"AWS","region":"us-west-2"},"bitrate_Bps":"43515904","avgrtt":""}
