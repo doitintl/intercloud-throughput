@@ -10,7 +10,7 @@ import itertools
 import shutil
 
 from clouds.clouds import Cloud, CloudRegion
-from utils.subprocesses import run_subprocess
+from util.subprocesses import run_subprocess
 
 logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
 
@@ -31,7 +31,12 @@ def sort_addr_by_region(
     for region in regions:
         for_this_region = [t for t in vm_region_and_address_infos if t[0] == region]
         if len(for_this_region) != 1:
-            logging.error("For region %s found this data %s. Had these VMs %s", region, for_this_region, vm_region_and_address_infos)
+            logging.error(
+                "For region %s found this data %s. Had these VMs %s",
+                region,
+                for_this_region,
+                vm_region_and_address_infos,
+            )
         if for_this_region:
             ret.append(for_this_region[0])
     return ret
@@ -170,7 +175,7 @@ def run_tests(
             with open(results_dir_for_this_runid + os.sep + fname) as infile:
                 one_json = infile.read()
                 if one_json.endswith("\n\n"):
-                    one_json=one_json[:-1]
+                    one_json = one_json[:-1]
                 outfile.write(one_json)
     shutil.rmtree(results_dir_for_this_runid)
 
@@ -224,7 +229,7 @@ def main():
     if len(sys.argv) > 1:
         gcp_project = sys.argv[1]
     else:
-        gcp_project = "joshua-playground"
+        gcp_project = None  # use default
 
     regions = [(Cloud.GCP, "us-east4", gcp_project), (Cloud.AWS, "us-west-2")]
     crossproduct = True

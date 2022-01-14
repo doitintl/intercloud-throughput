@@ -1,36 +1,43 @@
-import os
 import re
 from enum import Enum
 from typing import Optional, Dict
 
+from util import utils
+from util.utils import gcp_default_project
+
 
 class Cloud(Enum):
-    GCP = 0
-    AWS = 1
-
-
-def _root_dir():
-    this_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.realpath(f"{this_dir}{os.sep}..")
+    GCP = "GCP"
+    AWS = "AWS"
 
 
 class CloudRegion:
-    def __init__(self, cloud: Cloud, region: str, gcp_project: Optional[str] = None):
+    def __init__(
+        self,
+        cloud: Cloud,
+        region: str,
+        gcp_project: Optional[str] = None,
+        *,
+        lat: float = None,
+        long: float = None,
+    ):
         assert re.match(r"[a-z][a-z-]+\d$", region)
-        assert (cloud == Cloud.GCP) == bool(gcp_project)
-
+        if Cloud.GCP and not gcp_project:
+            gcp_project = gcp_default_project()
+        self.lat = lat
+        self.long = long
         self.cloud = cloud
         self.region = region
         self.gcp_project = gcp_project
 
     def script(self):
-        return f"{_root_dir()}/scripts/{self.lowercase_cloud_name()}-launch.sh"
+        return f"{utils.root_dir()}/scripts/{self.lowercase_cloud_name()}-launch.sh"
 
     def deletion_script(self):
-        return f"{_root_dir()}/scripts/{self.lowercase_cloud_name()}-delete-instances.sh"
+        return f"{utils.root_dir()}/scripts/{self.lowercase_cloud_name()}-delete-instances.sh"
 
     def script_for_test_from_region(self):
-        return f"{_root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
+        return f"{utils.root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
         return f"{self.cloud.name}{self.region}"
