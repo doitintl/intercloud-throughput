@@ -19,15 +19,37 @@ export SG=intercloud
 CLIENT_REGION_KEYNAME=${BASE_KEYNAME}-${CLIENT_REGION}
 CLIENT_REGION_KEYFILE=${CLIENT_REGION_KEYNAME}.pem
 
-# Could do perf -d for twoway
-IPERF_OUTPUT=$(ssh -oStrictHostKeyChecking=no -i "$CLIENT_REGION_KEYFILE" ec2-user@"$CLIENT_PUBLIC_ADDRESS"  "iperf -c $SERVER_PUBLIC_ADDRESS -y C" )
+set +e
+IPERF_OUTPUT=""
+N=5
+while ((  $N > 0 )) && [[ -z $IPERF_OUTPUT ]]; do
+  IPERF_OUTPUT=$(ssh -oStrictHostKeyChecking=no -i "$CLIENT_REGION_KEYFILE" ec2-user@"$CLIENT_PUBLIC_ADDRESS"  "iperf -c $SERVER_PUBLIC_ADDRESS -y C" )
+  N=$(( N-1 ))
+  sleep 2
+done
 
->&2 echo "$IPERF_OUTPUT"
-
+if [[ -z "$IPERF_OUTPUT" ]]; then
+ >&2 echo "No IPERF_OUTPUT"
+ exit 233
+fi
+set -e
 export BITRATE
 BITRATE=$(echo "$IPERF_OUTPUT" | awk -F, '{print  $(NF-1) }' )
 
-PING_OUTPUT=$(ssh -oStrictHostKeyChecking=no -i "$CLIENT_REGION_KEYFILE" ec2-user@"$CLIENT_PUBLIC_ADDRESS"  "ping $SERVER_PUBLIC_ADDRESS -c 5" |tail -n 1)
+set +e
+PING_OUTPUT=""
+N=5
+while ((  $N > 0 )) && [[ -z $PING_OUTPUT ]]; do
+  PING_OUTPUT=$(ssh -oStrictHostKeyChecking=no -i "$CLIENT_REGION_KEYFILE" ec2-user@"$CLIENT_PUBLIC_ADDRESS"  "ping $SERVER_PUBLIC_ADDRESS -c 5" |tail -n 1)
+  N=$(( N-1 ))
+  sleep 2
+done
+
+if [[ -z "$PING_OUTPUT" ]]; then
+ >&2 echo "No PING_OUTPUT"
+ exit 223
+fi
+set -e
 
 export AVG_RTT
 AVG_RTT=$( echo "${PING_OUTPUT}" | awk -F= '{print $2}' | awk -F/ '{print $2}' )

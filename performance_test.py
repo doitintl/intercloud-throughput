@@ -74,7 +74,7 @@ def create_vms(regions, run_id) -> List[Tuple[CloudRegion, Dict]]:
     threads = []
     for cloud_region in regions:
         thread = threading.Thread(
-            name=f"{cloud_region}",
+            name=f"create-{cloud_region}",
             target=create_vm,
             args=(run_id, cloud_region, vm_region_and_address_infos),
         )
@@ -146,11 +146,11 @@ def run_tests(
 
     vm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
     if crossproduct:
-        vm_pairs = list(
+        vm_pairs_all = list(
             itertools.product(vm_region_and_address_infos, vm_region_and_address_infos)
         )
-        vm_pairs = filter(vm_pairs, lambda pair: pair[0][0] != pair[1][0])
-
+        vm_pairs = list(filter(lambda pair: pair[0][0] != pair[1][0],vm_pairs_all))
+        logging.info("Removed %d identical VM pairs from the cross product", len(vm_pairs_all)-len(vm_pairs))
     else:
         assert (
             len(vm_region_and_address_infos) % 2 == 0
@@ -202,13 +202,13 @@ def delete_vms(run_id, regions: List[CloudRegion]):
         script = cloud_region.deletion_script()
         _ = run_subprocess(script, env)
 
-    # First, Aws
+    # First, AWS
     aws_regions = [r for r in regions if r.cloud == Cloud.AWS]
     threads = []
 
     for cloud_region in aws_regions:
         thread = threading.Thread(
-            name=f"{cloud_region}", target=delete_aws_vm, args=(cloud_region,)
+            name=f"delete-{cloud_region}", target=delete_aws_vm, args=(cloud_region,)
         )
         threads.append(thread)
         thread.start()
@@ -253,7 +253,7 @@ def main():
     else:
         gcp_project = None  # use default
 
-    regions = [(Cloud.AWS, "us-east-1"), (Cloud.GCP, "us-west3", gcp_project)]
+    regions = [(Cloud.AWS, "us-east-2"), (Cloud.GCP, "us-west3", gcp_project)]
     crossproduct = False
     do_all(run_id, crossproduct, [get_cloud_region(*r) for r in regions])
 
