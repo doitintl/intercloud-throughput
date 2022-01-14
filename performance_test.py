@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import random
@@ -9,16 +10,20 @@ from typing import List, Dict, Tuple, Iterable
 import itertools
 import shutil
 
-from clouds.clouds import Cloud, CloudRegion
+from clouds.clouds import Cloud, CloudRegion, get_cloud_region, interregion_distance
 from util.subprocesses import run_subprocess
 
-logging.basicConfig(encoding="utf-8", level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 
 def __env_for_singlecloud_subprocess(run_id, cloud_region):
     return {
         "PATH": os.environ["PATH"],
-        "REGION": cloud_region.region,
+        "REGION": cloud_region.region_id,
         "RUN_ID": run_id,
     } | cloud_region.env()
 
@@ -32,7 +37,7 @@ def sort_addr_by_region(
         for_this_region = [t for t in vm_region_and_address_infos if t[0] == region]
         if len(for_this_region) != 1:
             logging.error(
-                "For region %s found this data %s. Had these VMs %s",
+                "For region %s found this data %s. Had these VMs %s}",
                 region,
                 for_this_region,
                 vm_region_and_address_infos,
@@ -84,8 +89,6 @@ def create_vms(regions, run_id) -> List[Tuple[CloudRegion, Dict]]:
     return ret
 
 
-# Because this runs tests multithreaded, if one fails, run_tests() will not thrown an Exception.
-# This is good in case the VMs where launched but a test fails, as VMs will still be cleaned up
 def run_tests(
     run_id: str,
     crossproduct: bool,
@@ -107,14 +110,19 @@ def run_tests(
             "SERVER_PUBLIC_ADDRESS": dst_addr_infos["address"],
             "SERVER_CLOUD": dst_region_.cloud.name,
             "CLIENT_CLOUD": src_region_.cloud.name,
-            "SERVER_REGION": dst_region_.region,
-            "CLIENT_REGION": src_region_.region,
+            "SERVER_REGION": dst_region_.region_id,
+            "CLIENT_REGION": src_region_.region_id,
         }
         if src_region.cloud == Cloud.AWS:
-            env["CLIENT_PUBLIC_ADDRESS"] = src_addr_infos["address"]
+            env |= {
+                "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
+                "BASE_KEYNAME": "intercloudperfkey",
+            }
         elif src_region.cloud == Cloud.GCP:
-            env["CLIENT_NAME"] = src_addr_infos["name"]
-            env["CLIENT_ZONE"] = src_addr_infos["zone"]
+            env |= {
+                "CLIENT_NAME": src_addr_infos["name"],
+                "CLIENT_ZONE": src_addr_infos["zone"],
+            }
         else:
             raise Exception(f"Implement {src_region}")
         non_str = [(k, v) for k, v in env.items() if type(v) != str]
@@ -126,25 +134,31 @@ def run_tests(
             "Test %s result from %s to %s is %s", run_id, src, dst, process_stdout
         )
         test_result = process_stdout + "\n"
+        result_j = json.loads(test_result)
+        result_j["distance"] = interregion_distance(src_region_, dst_region_)
 
         # We write separate files for each test to avoid race conditions, since tests happen in parallel.
         with open(
             f"{results_dir_for_this_runid}/results-{src_region_}-to-{dst_region_}.json",
             "w",
         ) as f:
-            f.write(test_result)
+            json.dump(result_j, f)
 
     vm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
     if crossproduct:
         vm_pairs = list(
             itertools.product(vm_region_and_address_infos, vm_region_and_address_infos)
         )
+        vm_pairs = filter(vm_pairs, lambda pair: pair[0][0] != pair[1][0])
 
     else:
         assert (
-            len(vm_region_and_address_infos) == 2
-        ), f"Must create VMs in exactly 2 regions unless crossproduct is requested, but was {vm_region_and_address_infos}"
-        vm_pairs = [tuple(vm_region_and_address_infos)]
+            len(vm_region_and_address_infos) % 2 == 0
+        ), f"Must provide an even number of regions. They will be taken in pairs for tests: {vm_region_and_address_infos}"
+        vm_pairs = [
+            (vm_region_and_address_infos[i], vm_region_and_address_infos[i + 1])
+            for i in range(0, len(vm_region_and_address_infos), 2)
+        ]
 
     logging.info(
         "Testing %s. %s tests and %s regions ",
@@ -158,7 +172,7 @@ def run_tests(
         src_region = src[0]
         dst_region = dest[0]
         thread_name = f"{src_region}-{dst_region}"
-        logging.info(f"Will run test {thread_name}")
+        logging.info(f"Will run test %s", thread_name)
         thread = threading.Thread(
             name=thread_name, target=run_test, args=(run_id, src, dest)
         )
@@ -174,16 +188,16 @@ def run_tests(
         for fname in filenames:
             with open(results_dir_for_this_runid + os.sep + fname) as infile:
                 one_json = infile.read()
-                if one_json.endswith("\n\n"):
-                    one_json = one_json[:-1]
-                outfile.write(one_json)
+                outfile.write(one_json + "\n")
     shutil.rmtree(results_dir_for_this_runid)
 
 
 def delete_vms(run_id, regions: List[CloudRegion]):
     def delete_aws_vm(aws_cloud_region: CloudRegion):
         assert aws_cloud_region.cloud == Cloud.AWS, aws_cloud_region
-        logging.info("Will delete VMs from run-id %s in %s", run_id, aws_cloud_region)
+        logging.info(
+            "Will delete EC2 VMs from run-id %s in %s", run_id, aws_cloud_region
+        )
         env = __env_for_singlecloud_subprocess(run_id, aws_cloud_region)
         script = cloud_region.deletion_script()
         _ = run_subprocess(script, env)
@@ -201,7 +215,7 @@ def delete_vms(run_id, regions: List[CloudRegion]):
 
     for thread in threads:
         thread.join()
-        logging.info('"%s" done', thread.name)
+        logging.info("%s done", thread.name)
 
     # Now GCP
 
@@ -211,12 +225,20 @@ def delete_vms(run_id, regions: List[CloudRegion]):
         cloud_region = gcp_regions[
             0
         ]  # One arbitrary region, for getting values for GCP.
-        logging.info("Will delete VMs from run-id %s ", run_id)
+        logging.info("Will delete GCE VMs from run-id %s", run_id)
         env = __env_for_singlecloud_subprocess(run_id, cloud_region)
         _ = run_subprocess(cloud_region.deletion_script(), env)
 
 
 def do_all(run_id: str, crossproduct: bool, regions: List[CloudRegion]):
+    """
+
+    :param crossproduct: If true, will test each possible pair of CloudRegions. (Not same-to-same, however).
+    If False, will take the list of region in pairs, and test from the first to the second
+    in each pair.
+    """
+    # Because we launch VMs and runs tests multithreaded, if one launch fails or one tests fails, run_tests() will not thrown an Exception.
+    # So, VMs will still be cleaned up
     vm_region_and_address_infos = create_vms(regions, run_id)
     logging.info(vm_region_and_address_infos)
     run_tests(run_id, crossproduct, vm_region_and_address_infos)
@@ -231,9 +253,9 @@ def main():
     else:
         gcp_project = None  # use default
 
-    regions = [(Cloud.GCP, "us-east4", gcp_project), (Cloud.AWS, "us-west-2")]
-    crossproduct = True
-    do_all(run_id, crossproduct, [CloudRegion(*r) for r in regions])
+    regions = [(Cloud.AWS, "us-east-1"), (Cloud.GCP, "us-west3", gcp_project)]
+    crossproduct = False
+    do_all(run_id, crossproduct, [get_cloud_region(*r) for r in regions])
 
 
 if __name__ == "__main__":

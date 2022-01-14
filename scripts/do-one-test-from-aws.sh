@@ -4,7 +4,7 @@ set -x
 set -e
 set -u
 export SG=intercloud
-export BASE_KEYNAME=intercloudperf
+
 
 
 # Check that variables are set
@@ -15,7 +15,7 @@ export BASE_KEYNAME=intercloudperf
 >&2 echo "$CLIENT_CLOUD"
 >&2 echo "$SERVER_REGION"
 >&2 echo "$CLIENT_REGION"
-
+>&2 echo $BASE_KEYNAME
 CLIENT_REGION_KEYNAME=${BASE_KEYNAME}-${CLIENT_REGION}
 CLIENT_REGION_KEYFILE=${CLIENT_REGION_KEYNAME}.pem
 

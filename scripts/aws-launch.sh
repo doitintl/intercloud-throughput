@@ -7,10 +7,10 @@ set -u
 # Check that variables are set
 >&2 echo $RUN_ID
 >&2 echo $REGION
-
+>&2 echo $BASE_KEYNAME
 
 SG=intercloud
-BASE_KEYNAME=intercloudperf
+
 INIT_SCRIPT=aws-install-and-run-iperf-server.sh
 
 
@@ -60,8 +60,8 @@ INSTANCE_ID=$( echo "$CREATION_OUTPUT" | jq -r ".Instances[0].InstanceId" )
 TARGET_STATE="passed"
 STATUS="N/A"
 
-# Try for up to approx 3 minutes
-N=60
+# Try for up to approx 5 minutes, We hae seen init happen after 55 loops.
+N=80
 while ((  $N > 0 )) && [[ "$STATUS" != "\"$TARGET_STATE\"" ]]; do
    STATUS=$(
      aws ec2 describe-instance-status --region $REGION  --instance-ids "$INSTANCE_ID"  --query "InstanceStatuses[0].InstanceStatus.Details[0].Status"
