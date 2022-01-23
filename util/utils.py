@@ -5,6 +5,14 @@ from util import subprocesses
 GCP_DFLT = None
 
 
+def dedup(lst):
+    ret = []
+    for i in lst:
+        if i not in ret:
+            ret.append(i)
+    return ret
+
+
 def root_dir():
     this_dir = os.path.dirname(os.path.realpath(__file__))
     return os.path.realpath(f"{this_dir}{os.sep}..")

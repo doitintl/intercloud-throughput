@@ -9,14 +9,14 @@ set -u
 >&2 echo $REGION
 >&2 echo $BASE_KEYNAME
 
-SG=intercloud
+SG=intercloud-sg
 
 INIT_SCRIPT=aws-install-and-run-iperf-server.sh
 
 
 NAME="${REGION}-${RUN_ID}"
 REGION_KEYNAME=${BASE_KEYNAME}-${REGION}
-REGION_KEYFILE=${REGION_KEYNAME}.pem
+REGION_KEYFILE=./aws-pems/${REGION_KEYNAME}.pem
 
 aws ec2 create-security-group --region $REGION --group-name $SG --description "For intercloud tests" > /dev/null || true
 aws ec2 authorize-security-group-ingress --region $REGION --group-name $SG --protocol tcp --port 22 --cidr 0.0.0.0/0 > /dev/null || true

@@ -1,17 +1,16 @@
-import re
-from enum import Enum
-from typing import Optional, Dict
-
 import csv
 import inspect
-from util.utils import gcp_default_project
 import itertools
 import os
+import re
+from enum import Enum
+from typing import Dict
 from typing import List, Optional
 
 import geopy.distance
 
 from util import utils
+from util.utils import gcp_default_project
 
 
 class Cloud(Enum):
@@ -56,7 +55,7 @@ class CloudRegion:
         return f"{utils.root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
-        return f"{self.cloud.name}{self.region_id}"
+        return f"{self.cloud.name}-{self.region_id}"
 
     def env(self) -> Dict[str, str]:
         envs = {
@@ -80,13 +79,13 @@ __REGIONS: List[CloudRegion]
 __REGIONS = []
 
 
-def get_regions(gcp_project: Optional[str]):
+def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
     """ "
     :param gcp_project is optional, if provided, will be used for GCP regions. Otherwise, built-in default will be used.
     """
 
-    def gcp_proj(cloud_, gcp_project):
-        if cloud_ == Cloud.GCP.name:
+    def gcp_proj(cld, gcp_project):
+        if cld == Cloud.GCP.name:
             if gcp_project:
                 gcp_proj = gcp_project
             else:
@@ -99,8 +98,8 @@ def get_regions(gcp_project: Optional[str]):
 
     if not __REGIONS:
 
-        fp = open(utils.root_dir() + os.sep + "locations.csv")
-        rdr = csv.DictReader(filter(lambda row: row[0] != "#", fp))
+        fp = open(utils.root_dir() + os.sep + "./data/locations.csv")
+        rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
         for row in rdr:
 
             lat_s = row.get("lat")
@@ -132,6 +131,7 @@ def get_cloud_region(
     gcp_project: Optional[str] = None,
 ):
     regions = get_regions(gcp_project)
+    assert isinstance(cloud, Cloud), cloud
     matches = [r for r in regions if r.cloud == cloud and r.region_id == region_id]
     if not matches:
         print(f"{cloud}")

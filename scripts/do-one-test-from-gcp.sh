@@ -20,7 +20,7 @@ set -u
 IPERF_OUTPUT=""
 
 set +e
-N=7
+N=10
 while ((  $N > 0 )) && [[ -z "$IPERF_OUTPUT" ]]; do
     sleep 3
     # Could do iperf -d for twoway
