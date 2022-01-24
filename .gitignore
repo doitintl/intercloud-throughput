@@ -4,10 +4,11 @@
 
 .idea/
 *.pem
-.DS_Storemm
-#results.*
+.DS_Store
+
 TMP*
 TEMP*
 
 results*/
 __pycache__/
+result-files-one-run/
