@@ -28,8 +28,8 @@ def remove_already_attempted(
 
     print(
         f"Of {len(region_pairs)} to be tested; "
-        f"Will not do any of the {len(already_attempted)} already attempted; "
-        f"Of these {len(old_failures)} were failures; "
+        f"Will not do any of the {len(successful_results)} successful ; "
+        f"Or {len(old_failures)}   failures; "
         f"Testing {len(ret)} pairs"
     )
     return ret

@@ -55,7 +55,11 @@ class CloudRegion:
         return f"{utils.root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
-        return f"{self.cloud.name}-{self.region_id}"
+        gcp = "="+self.gcp_project  if self.gcp_project else ""
+        return f"{self.cloud.name}-{self.region_id}{gcp}"
+
+    def  __hash__(self):
+        hash(repr(self))
 
     def env(self) -> Dict[str, str]:
         envs = {
@@ -66,6 +70,8 @@ class CloudRegion:
 
     def lowercase_cloud_name(self):
         return self.cloud.name.lower()
+    def __lt__(self,other):
+        return repr(self)< repr(other )
 
     def __eq__(self, other):
         return (

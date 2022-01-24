@@ -32,8 +32,8 @@ def untested_regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
 
     all_regions: List[CloudRegion]
     all_regions = cloud.clouds.get_regions()
-    all_pairs_with_dup = itertools.product(all_regions, all_regions)
-    all_pairs = [p for p in all_pairs_with_dup if p[0] != p[1]]
+    all_pairs_with_intraregion = itertools.product(all_regions, all_regions)
+    all_pairs = [p for p in all_pairs_with_intraregion if p[0] != p[1]]
     tested_pairs = []
     for result in test_results_:
         from_cloud = region_from_dict(result, "from")
@@ -106,6 +106,7 @@ if __name__ == "__main__":
 
 def combine_results_to_jsonl(results_dir_for_this_runid):
     filenames = os.listdir(results_dir_for_this_runid)
+    logging.info(f"Combining {len(filenames)} results")
     with open(results_jsonl, "a") as outfile:
         for fname in filenames:
             with open(results_dir_for_this_runid + os.sep + fname) as infile:

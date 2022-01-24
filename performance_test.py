@@ -125,10 +125,15 @@ def __do_tests(
                 "BASE_KEYNAME": "intercloudperfkey",
             }
         elif src_region.cloud == Cloud.GCP:
-            env |= {
-                "CLIENT_NAME": src_addr_infos["name"],
-                "CLIENT_ZONE": src_addr_infos["zone"],
-            }
+            try:
+                env |= {
+                    "CLIENT_NAME": src_addr_infos["name"],
+                    "CLIENT_ZONE": src_addr_infos["zone"],
+                }
+            except KeyError as ke:
+                logging.error("{src_addr_infos=}")
+                raise ke
+
         else:
             raise Exception(f"Implement {src_region}")
         non_str = [(k, v) for k, v in env.items() if type(v) != str]
@@ -254,14 +259,14 @@ def main():
 
     region_pairs = untested_regionpairs()
     region_pairs = remove_already_attempted(region_pairs)
-    random.shuffle(region_pairs)
+    region_pairs.sort()
 
-    group_size = 2
+    group_size = 6
     groups_ = [
         region_pairs[i : i + group_size]
         for i in range(0, len(region_pairs), group_size)
     ]
-    groups_ = groups_[:1]  # REMOVE!
+    groups_ = groups_[:2]  # REMOVE!
     tot_len=sum(len(g) for g in groups_)
     logging.info(f"Running test on only {tot_len}")
     for group in groups_:
