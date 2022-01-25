@@ -12,8 +12,8 @@ from typing import List, Dict, Tuple
 
 
 from history.attempted import remove_already_attempted, write_attempted_tests
-from cloud.clouds import Cloud, CloudRegion, interregion_distance
-from history.results import combine_results_to_jsonl, untested_regionpairs, jsonl_to_csv
+from cloud.clouds import Cloud, CloudRegion, interregion_distance, get_regions
+from history.results import combine_results_to_jsonl,  jsonl_to_csv
 from util.subprocesses import run_subprocess
 from util.utils import dedup
 
@@ -193,6 +193,17 @@ def __do_tests(
     #shutil.rmtree(results_dir_for_this_runid)
 
 
+def __regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
+    test_results_: List[Dict]
+
+    all_regions: List[CloudRegion]
+    all_regions = get_regions()
+    all_pairs_with_intraregion = itertools.product(all_regions, all_regions)
+    all_pairs_no_intraregion = [p for p in all_pairs_with_intraregion if p[0] != p[1]]
+
+    return all_pairs_no_intraregion
+
+
 def __delete_vms(run_id, regions: List[CloudRegion]):
     def delete_aws_vm(aws_cloud_region: CloudRegion):
         assert aws_cloud_region.cloud == Cloud.AWS, aws_cloud_region
@@ -257,19 +268,19 @@ def main():
     else:
         gcp_project = None  # use default
 
-    region_pairs = untested_regionpairs()
+    region_pairs = __regionpairs()
     region_pairs = remove_already_attempted(region_pairs)
     region_pairs.sort()
 
-    group_size = 6
-    groups_ = [
-        region_pairs[i : i + group_size]
-        for i in range(0, len(region_pairs), group_size)
+    batch_size = 5
+    batches = [
+        region_pairs[i : i + batch_size]
+        for i in range(0, len(region_pairs), batch_size)
     ]
-    groups_ = groups_[:2]  # REMOVE!
-    tot_len=sum(len(g) for g in groups_)
+    batches = batches[:2]  # REMOVE!
+    tot_len=sum(len(g) for g in batches)
     logging.info(f"Running test on only {tot_len}")
-    for group in groups_:
+    for group in batches:
         test_region_pairs(group, run_id)
     jsonl_to_csv()
 

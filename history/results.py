@@ -21,26 +21,6 @@ __results_csv = "./data/results.csv"
 results_jsonl = "./data/results.jsonl"
 
 
-def untested_regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
-    test_results_: List[Dict]
-    test_results_ = __load_results_json()
-
-    def region_from_dict(dict_, pfx):
-        return get_cloud_region(
-            cloud.clouds.Cloud(dict_[f"{pfx}_cloud"]), dict_[f"{pfx}_region"]
-        )
-
-    all_regions: List[CloudRegion]
-    all_regions = cloud.clouds.get_regions()
-    all_pairs_with_intraregion = itertools.product(all_regions, all_regions)
-    all_pairs = [p for p in all_pairs_with_intraregion if p[0] != p[1]]
-    tested_pairs = []
-    for result in test_results_:
-        from_cloud = region_from_dict(result, "from")
-        to_cloud = region_from_dict(result, "to")
-        tested_pairs.append((from_cloud, to_cloud))
-    untested = [p for p in all_pairs if p not in tested_pairs]
-    return untested
 
 
 def load_results_csv() -> List[Dict]:

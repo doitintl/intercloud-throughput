@@ -96,3 +96,8 @@ GCP,us-west3,GCP,us-central1
 GCP,us-west3,GCP,us-east1
 GCP,us-west4,AWS,us-west-1
 GCP,us-west4,GCP,us-west1
+AWS,us-east-1,AWS,us-east-2
+AWS,us-east-2,AWS,us-east-1
+AWS,us-east-2,AWS,us-west-1
+AWS,us-east-2,AWS,us-west-2
+AWS,us-east-2,GCP,us-central1

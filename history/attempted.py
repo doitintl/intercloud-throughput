@@ -19,20 +19,19 @@ logging.basicConfig(
 def remove_already_attempted(
     region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
-    already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(__already_attempted())
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_results_csv())
-
+    already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(__already_attempted())
     old_failures = [p for p in already_attempted if p not in successful_results]
 
-    ret = list(filter(lambda r: r not in already_attempted, region_pairs))
-
+    no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
+    no_redo_any_attempted = list(filter(lambda r: r not in no_redo_success, region_pairs))
     print(
         f"Of {len(region_pairs)} to be tested; "
-        f"Will not do any of the {len(successful_results)} successful ; "
-        f"Or {len(old_failures)}   failures; "
-        f"Testing {len(ret)} pairs"
+        f"Will not redo the {len(successful_results)} successes; "
+        f"WILL retry the {len(old_failures)} failures; "
+        f"Testing {len(no_redo_success)} pairs."
     )
-    return ret
+    return no_redo_success
 
 
 def __results_dict_to_cloudregion_pairs_with_dedup(dicts):

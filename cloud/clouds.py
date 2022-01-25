@@ -4,6 +4,7 @@ import itertools
 import os
 import re
 from enum import Enum
+from functools import total_ordering
 from typing import Dict
 from typing import List, Optional
 
@@ -20,7 +21,7 @@ class Cloud(Enum):
     def __str__(self):
         return self.name
 
-
+@total_ordering
 class CloudRegion:
     def __init__(
         self,
@@ -71,6 +72,7 @@ class CloudRegion:
     def lowercase_cloud_name(self):
         return self.cloud.name.lower()
     def __lt__(self,other):
+        """Note @total_ordering above"""
         return repr(self)< repr(other )
 
     def __eq__(self, other):
