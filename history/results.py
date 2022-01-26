@@ -21,8 +21,6 @@ __results_csv = "./data/results.csv"
 results_jsonl = "./data/results.jsonl"
 
 
-
-
 def load_results_csv() -> List[Dict]:
     with open(__results_csv) as f:
         reader = csv.reader(f, skipinitialspace=True)
@@ -36,7 +34,8 @@ def __load_results_json() -> List[Dict]:
         return d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"]
 
     test_keys = []
-    dups=[]
+    dups = []
+
     def load_jsonl_and_convert():
         dicts = []
         with open(results_jsonl) as f:
@@ -57,9 +56,8 @@ def __load_results_json() -> List[Dict]:
                     test_keys.append(test_key_)
                 else:
                     dups.append(test_key_)
-        logging.info("%d duplicates %s", len(dups), dups)
+        logging.info("%d duplicates in %s: %s", len(dups), results_jsonl, dups)
         return dicts
-
 
     test_results_: List[Dict]
     test_results_ = load_jsonl_and_convert()
@@ -86,7 +84,7 @@ if __name__ == "__main__":
 
 def combine_results_to_jsonl(results_dir_for_this_runid):
     filenames = os.listdir(results_dir_for_this_runid)
-    logging.info(f"Combining {len(filenames)} results")
+    logging.info(f"Combining %d results into %s",len(filenames),results_jsonl)
     with open(results_jsonl, "a") as outfile:
         for fname in filenames:
             with open(results_dir_for_this_runid + os.sep + fname) as infile:

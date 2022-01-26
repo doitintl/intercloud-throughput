@@ -13,6 +13,8 @@ import geopy.distance
 from util import utils
 from util.utils import gcp_default_project
 
+key_for_aws_ssh_basename = "perftest"
+
 
 class Cloud(Enum):
     GCP = "GCP"
@@ -20,6 +22,7 @@ class Cloud(Enum):
 
     def __str__(self):
         return self.name
+
 
 @total_ordering
 class CloudRegion:
@@ -56,24 +59,25 @@ class CloudRegion:
         return f"{utils.root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
-        gcp = "="+self.gcp_project  if self.gcp_project else ""
+        gcp = "=" + self.gcp_project if self.gcp_project else ""
         return f"{self.cloud.name}-{self.region_id}{gcp}"
 
-    def  __hash__(self):
-        hash(repr(self))
+    def __hash__(self):
+        return hash(repr(self))
 
     def env(self) -> Dict[str, str]:
         envs = {
             Cloud.GCP: {"PROJECT_ID": self.gcp_project},
-            Cloud.AWS: {"BASE_KEYNAME": "intercloudperfkey"},
+            Cloud.AWS: {"BASE_KEYNAME": key_for_aws_ssh_basename},
         }
         return envs[self.cloud]
 
     def lowercase_cloud_name(self):
         return self.cloud.name.lower()
-    def __lt__(self,other):
+
+    def __lt__(self, other):
         """Note @total_ordering above"""
-        return repr(self)< repr(other )
+        return repr(self) < repr(other)
 
     def __eq__(self, other):
         return (
@@ -91,16 +95,22 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
     """ "
     :param gcp_project is optional, if provided, will be used for GCP regions. Otherwise, built-in default will be used.
     """
+    # Though each CloudRegion can take a gcp_project parameter,
+    # for now we only support 1 gcp project for all.
+    # So, only_gcp_project only exists to impose that constraint
+    only_gcp_project = None
 
     def gcp_proj(cld, gcp_project):
         if cld == Cloud.GCP.name:
-            if gcp_project:
-                gcp_proj = gcp_project
-            else:
-                gcp_proj = gcp_default_project()
+            ret = gcp_project or gcp_default_project()
+            nonlocal only_gcp_project
+            assert (
+                not only_gcp_project or ret == only_gcp_project
+            ), f"{ret}!={only_gcp_project}"
+            only_gcp_project = only_gcp_project or ret  # could omit only_gcp_project or
+            return ret
         else:
-            gcp_proj = None
-        return gcp_proj
+            return
 
     global __REGIONS
 

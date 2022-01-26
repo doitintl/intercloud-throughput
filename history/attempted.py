@@ -19,12 +19,18 @@ logging.basicConfig(
 def remove_already_attempted(
     region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
-    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_results_csv())
-    already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(__already_attempted())
+    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(
+        load_results_csv()
+    )
+    already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(
+        __already_attempted()
+    )
     old_failures = [p for p in already_attempted if p not in successful_results]
 
     no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
-    no_redo_any_attempted = list(filter(lambda r: r not in no_redo_success, region_pairs))
+    #no_redo_any_attempted = list(
+    #    filter(lambda r: r not in already_attempted, region_pairs)
+    #)
     print(
         f"Of {len(region_pairs)} to be tested; "
         f"Will not redo the {len(successful_results)} successes; "
@@ -35,13 +41,15 @@ def remove_already_attempted(
 
 
 def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
-    return dedup( [
-        (
-            get_cloud_region(Cloud(d["from_cloud"]), d["from_region"]),
-            get_cloud_region(Cloud(d["to_cloud"]), d["to_region"]),
-        )
-        for d in dicts
-    ])
+    return dedup(
+        [
+            (
+                get_cloud_region(Cloud(d["from_cloud"]), d["from_region"]),
+                get_cloud_region(Cloud(d["to_cloud"]), d["to_region"]),
+            )
+            for d in dicts
+        ]
+    )
 
 
 def write_attempted_tests(region_pairs):

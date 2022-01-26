@@ -1,19 +1,25 @@
+import argparse
+
 import datetime
 import itertools
 import json
 import logging
 import os
 import random
-import shutil
 import string
-import sys
 import threading
-from typing import List, Dict, Tuple
-
+from collections import Counter
+from typing import List, Dict, Tuple, Callable
 
 from history.attempted import remove_already_attempted, write_attempted_tests
-from cloud.clouds import Cloud, CloudRegion, interregion_distance, get_regions
-from history.results import combine_results_to_jsonl,  jsonl_to_csv
+from cloud.clouds import (
+    Cloud,
+    CloudRegion,
+    interregion_distance,
+    get_regions,
+    key_for_aws_ssh_basename,
+)
+from history.results import combine_results_to_jsonl, jsonl_to_csv
 from util.subprocesses import run_subprocess
 from util.utils import dedup
 
@@ -122,7 +128,7 @@ def __do_tests(
         if src_region.cloud == Cloud.AWS:
             env |= {
                 "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
-                "BASE_KEYNAME": "intercloudperfkey",
+                "BASE_KEYNAME": key_for_aws_ssh_basename,
             }
         elif src_region.cloud == Cloud.GCP:
             try:
@@ -148,12 +154,16 @@ def __do_tests(
         result_j = json.loads(test_result)
         result_j["distance"] = interregion_distance(src_region_, dst_region_)
 
+        results_for_one_run_file = (
+            f"{results_dir_for_this_runid}/results-{src_region_}-to-{dst_region_}.json"
+        )
         # We write separate files for each test to avoid race conditions, since tests happen in parallel.
         with open(
-            f"{results_dir_for_this_runid}/results-{src_region_}-to-{dst_region_}.json",
+            results_for_one_run_file,
             "w",
         ) as f:
             json.dump(result_j, f)
+            logging.info("Wrote %s", results_for_one_run_file)
 
     vm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
 
@@ -190,7 +200,7 @@ def __do_tests(
         logging.info('"%s" done', thread.name)
 
     combine_results_to_jsonl(results_dir_for_this_runid)
-    #shutil.rmtree(results_dir_for_this_runid)
+    # shutil.rmtree(results_dir_for_this_runid)
 
 
 def __regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
@@ -256,34 +266,64 @@ def __setup_and_tests_and_teardown(run_id: str, regions: List[CloudRegion]):
 
 def test_region_pairs(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
     write_attempted_tests(region_pairs)
+    logging.info("Will test %s", region_pairs)
     regions = list(itertools.chain(*region_pairs))
     __setup_and_tests_and_teardown(run_id, regions)
 
 
-def main():
+def most_frequent_region_first_func(region_pairs)->Callable[[Tuple[CloudRegion, CloudRegion]],  Tuple[int , str]]:
+    """:return a function that will allow sorting in descending order of freq of appearance
+    of a CloudRegion, with the name of the CloudRegion as a tiebreaker"""
+    sources=[r[0] for r in region_pairs]
+    dests=[r[1] for r in region_pairs]
+    both=sources+dests
+    counts=Counter(both)
+    def key_func(pair: Tuple[CloudRegion,CloudRegion])-> Tuple[int , str]:
+        descending_freq=-1*(counts[pair[0]]+counts[pair[1]])
+        return (descending_freq, repr(pair))
+    return key_func
+
+
+
+def setup_groups_of_tests(batch_size:int, num_batches:int, only_this_cloud:Cloud):
     logging.info("Started at %s", datetime.datetime.now().isoformat())
     run_id = "".join(random.choices(string.ascii_lowercase, k=4))
-    if len(sys.argv) > 1:
-        gcp_project = sys.argv[1]
-    else:
-        gcp_project = None  # use default
-
     region_pairs = __regionpairs()
     region_pairs = remove_already_attempted(region_pairs)
-    region_pairs.sort()
-
-    batch_size = 5
+    region_pairs = sorted(region_pairs, key=most_frequent_region_first_func(region_pairs))
+    if only_this_cloud:
+        region_pairs = [
+            r for r in region_pairs if r[0].cloud == only_this_cloud and r[1].cloud == only_this_cloud
+        ]
     batches = [
-        region_pairs[i : i + batch_size]
+        region_pairs[i: i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
-    batches = batches[:2]  # REMOVE!
-    tot_len=sum(len(g) for g in batches)
+    batches = batches[:num_batches]  # TODO remove line
+    tot_len = sum(len(g) for g in batches)
     logging.info(f"Running test on only {tot_len}")
+    return batches, run_id
+
+
+def main():
+    #TODO make these into switches
+    # only_this_cloud="GCP" # None for all-clouds
+    # batch_size=2
+    # num_batches=1
+
+    parser = argparse.ArgumentParser(description='',allow_abbrev=True)
+
+    parser.add_argument('--num_batches',  default=100_000,
+                        help='Number of batches. Can limit number of tests to be done along with batch_size. Default indicates "do everything")')
+    parser.add_argument('--batch_size',  default=2,  help='batch size')
+    parser.add_argument('--only_this_cloud',  default=None,    help='GCP or AWS. Default means "Do them all"')
+
+    args = parser.parse_args()
+    only_this_cloud_o=args.only_this_cloud and Cloud(args.only_this_cloud)
+    batches, run_id = setup_groups_of_tests(args.batch_size, args.num_batches, only_this_cloud_o)
     for group in batches:
         test_region_pairs(group, run_id)
     jsonl_to_csv()
-
 
 if __name__ == "__main__":
     main()
