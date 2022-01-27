@@ -15,10 +15,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
+data_dir= './data'
+__results_csv = f"{data_dir}/results.csv"
 
-__results_csv = "./data/results.csv"
-
-results_jsonl = "./data/results.jsonl"
+results_jsonl = f"{data_dir}/results.jsonl"
 
 
 def load_results_csv() -> List[Dict]:
@@ -87,6 +87,6 @@ def combine_results_to_jsonl(results_dir_for_this_runid):
     logging.info(f"Combining %d results into %s", len(filenames), results_jsonl)
     with open(results_jsonl, "a") as outfile:
         for fname in filenames:
-            with open(results_dir_for_this_runid + os.sep + fname) as infile:
+            with open(f"{results_dir_for_this_runid}/{fname}") as infile:
                 one_json = infile.read()
                 outfile.write(one_json + "\n")

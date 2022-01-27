@@ -10,6 +10,7 @@ from typing import List, Optional
 
 import geopy.distance
 
+from history.results import data_dir
 from util import utils
 from util.utils import gcp_default_project
 
@@ -116,7 +117,7 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
 
     if not __REGIONS:
 
-        fp = open(utils.root_dir() + os.sep + "./data/locations.csv")
+        fp = open(f"{utils.root_dir()}/{data_dir}/locations.csv")
         rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
         for row in rdr:
 

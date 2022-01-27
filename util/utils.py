@@ -15,7 +15,7 @@ def dedup(lst):
 
 def root_dir():
     this_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.realpath(f"{this_dir}{os.sep}..")
+    return os.path.realpath(f"{this_dir}/..")
 
 
 def gcp_default_project():

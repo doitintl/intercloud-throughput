@@ -4,20 +4,23 @@ import datetime
 import itertools
 import json
 import logging
+import math
 import os
 import random
 import string
 import threading
 from collections import Counter
-from typing import List, Dict, Tuple, Callable
 
-from history.attempted import remove_already_attempted, write_attempted_tests
+from typing import List, Dict, Tuple, Callable, Optional
+
+from history.attempted import without_already_attempted, write_attempted_tests
 from cloud.clouds import (
     Cloud,
     CloudRegion,
     interregion_distance,
     get_regions,
     key_for_aws_ssh_basename,
+    get_cloud_region,
 )
 from history.results import combine_results_to_jsonl, jsonl_to_csv
 from util.subprocesses import run_subprocess
@@ -288,58 +291,102 @@ def most_frequent_region_first_func(
     return key_func
 
 
-def setup_groups_of_tests(batch_size: int, num_batches: int, only_this_cloud: Cloud):
-    logging.info("Started at %s", datetime.datetime.now().isoformat())
-    run_id = "".join(random.choices(string.ascii_lowercase, k=4))
-    region_pairs = __regionpairs()
-    region_pairs = remove_already_attempted(region_pairs)
-    region_pairs = sorted(
-        region_pairs, key=most_frequent_region_first_func(region_pairs)
-    )
+def __parse_region_pairs(
+    region_pairs: str,
+) -> Optional[List[Tuple[CloudRegion, CloudRegion]]]:
+    if not region_pairs:
+        return None
+
+    def str_to_reg(s):
+        dash_idx = s.index("-")
+        if dash_idx == -1:
+            raise ValueError(f"{s} not a value cloud-region string")
+        cloud_s = s[0:dash_idx]
+        region_s = s[dash_idx + 1 :]
+        return get_cloud_region(Cloud(cloud_s), region_s)
+
+    pairs_s = region_pairs.split(";")
+    pairs_str_2item_list = [p.split(",") for p in pairs_s]
+    pairs_regions = [(str_to_reg(p[0]), str_to_reg(p[1])) for p in pairs_str_2item_list]
+    return pairs_regions
+
+
+def __batches_of_tests(
+    batch_size: int,
+    num_batches: int,
+    only_this_cloud: Cloud,
+    preselected_region_pairs: List[Tuple[CloudRegion, CloudRegion]],
+):
+    if preselected_region_pairs:
+        region_pairs = preselected_region_pairs
+    else:
+        region_pairs = __regionpairs()
+        region_pairs = without_already_attempted(region_pairs)
+        region_pairs = sorted(
+            region_pairs, key=most_frequent_region_first_func(region_pairs)
+        )
+
     if only_this_cloud:
         region_pairs = [
             r
             for r in region_pairs
             if r[0].cloud == only_this_cloud and r[1].cloud == only_this_cloud
         ]
+
     batches = [
         region_pairs[i : i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
-    batches = batches[:num_batches]  # TODO remove line
+    if num_batches>math.inf:
+        batches = batches[:num_batches]
     tot_len = sum(len(g) for g in batches)
-    logging.info(f"After filtering where requested for batch size/count and for specific cloud, running test on only {tot_len}")
-    return batches, run_id
+    logging.info(
+        f"After limiting number of tests, where specified, for batch size/count and for specific cloud, running {tot_len} tests"
+    )
+    return batches
 
 
 def main():
-    # TODO make these into switches
-    # only_this_cloud="GCP" # None for all-clouds
-    # batch_size=2
-    # num_batches=1
+
+    logging.info("Started at %s", datetime.datetime.now().isoformat())
 
     parser = argparse.ArgumentParser(description="", allow_abbrev=True)
-
-    parser.add_argument("--batch_size", type=int, default=6, help="Batch size")
+    parser.add_argument(
+        "--region_pairs",
+        type=str,
+        default=None,
+        help="Pairs to test, where "
+        "cloud and region names are separated by dash; source and destination are separated by comma; "
+        "and pairs are separated by semicolon, "
+        "as for example: AWS-us-east-1,AWS-us-east-2;AWS-us-west-1,GCP-us-west3",
+    )
+    parser.add_argument("--batch_size", type=int, default=6,
+                        help='Size of batch of tests to be run in parallels. Together with num_batches, this can limit number of tests")',
+                        )
 
     parser.add_argument(
-        "--num_batches",type=int,
-        default=100_000,
-        help='Max number of batches. Together with batch_size, this can limit number of tests. Default indicates "do everything")',
+        "--num_batches",
+        type=int,
+        default=math.inf,
+        help='Max number of batches. Together with batch_size, this can limit number of tests. Default indicates "do all tests")',
     )
     parser.add_argument(
-        "--only_this_cloud", type=Cloud,
+        "--only_this_cloud",
+        type=Cloud,
         default=None,
         help='"GCP" or "AWS". Default (None) means "Do them all"',
     )
 
     args = parser.parse_args()
-    batches, run_id = setup_groups_of_tests(
-        args.batch_size, args.num_batches, args.only_this_cloud
-    )
+    region_pairs = __parse_region_pairs(args.region_pairs)
 
-    for group in batches:
-        test_region_pairs(group, run_id)
+    batches = __batches_of_tests(
+        args.batch_size, args.num_batches, args.only_this_cloud, region_pairs
+    )
+    run_id = "".join(random.choices(string.ascii_lowercase, k=4))
+
+    for batch in batches:
+        test_region_pairs(batch, run_id)
 
     jsonl_to_csv()
 

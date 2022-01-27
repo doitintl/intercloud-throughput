@@ -4,10 +4,10 @@ from typing import List, Tuple, Dict
 
 
 from cloud.clouds import CloudRegion, get_cloud_region, Cloud
-from history.results import load_results_csv
+from history.results import load_results_csv, data_dir
 from util.utils import dedup
 
-__attempted_tests_csv = "./data/attempted_tests.csv"
+__attempted_tests_csv = f"{data_dir}/attempted_tests.csv"
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 
 
-def remove_already_attempted(
+def without_already_attempted(
     region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(
