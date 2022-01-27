@@ -1,3 +1,4 @@
+import collections
 import csv
 
 import json
@@ -27,6 +28,24 @@ def load_results_csv() -> List[Dict]:
         return []
 
 
+def __log_supernumerary_tests(dicts):
+    by_test_pairs=[(d["from_cloud"],d[ "from_region"],d[ "to_cloud"],d[ "to_region"]) for d in dicts]
+    c=collections.Counter(by_test_pairs)
+    items=sorted(list(c.items()), key=lambda i: -i[1])
+
+    def region_s(q):
+        return f"{q[0]} {q[1]} to {q[2]} {q[3]}"
+
+    items_s=[f"{v}: {region_s(k)}" for k,v in items]
+    s="\n".join(items_s)
+
+    logging.info("Frequency of test for each pair\n%s",s)
+    same_region_tests=[i for i  in by_test_pairs if (i[0], i[1])==(i[2], i[3])]
+    logging.info("Same-region tests\n%s","\n".join(set(sorted([region_s(p) for p in same_region_tests]))))
+
+
+
+
 def combine_results_to_csv(results_dir_for_this_runid):
     def json_to_flattened_dict(json_s: str) -> Dict:
         ret = {}
@@ -42,6 +61,7 @@ def combine_results_to_csv(results_dir_for_this_runid):
 
     filenames = os.listdir(results_dir_for_this_runid)
     dicts = load_results_csv()
+    __log_supernumerary_tests(dicts)
     logging.info(
         f"Adding %d new results into %d existing results in %s",
         len(filenames),
@@ -66,3 +86,8 @@ def combine_results_to_csv(results_dir_for_this_runid):
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(dicts)
+
+if __name__=="__main__":
+
+    dicts = load_results_csv()
+    __log_supernumerary_tests(dicts)

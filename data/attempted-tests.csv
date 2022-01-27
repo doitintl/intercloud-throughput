@@ -177,3 +177,10 @@ GCP,us-west3,GCP,us-west4
 GCP,us-west3,GCP,us-west4
 GCP,us-west3,GCP,us-west4
 GCP,us-west3,GCP,us-west4
+GCP,us-west3,GCP,us-west4
+AWS,us-east-2,AWS,us-west-2
+AWS,us-west-2,AWS,us-east-2
+AWS,us-east-2,AWS,us-east-1
+AWS,us-east-2,AWS,us-west-1
+AWS,us-east-2,GCP,us-east1
+AWS,us-west-1,AWS,us-east-2
