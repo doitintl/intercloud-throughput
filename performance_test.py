@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import random
+import shutil
 import string
 import threading
 from collections import Counter
@@ -22,7 +23,8 @@ from cloud.clouds import (
     key_for_aws_ssh_basename,
     get_cloud_region,
 )
-from history.results import combine_results_to_jsonl, jsonl_to_csv
+from history.results import combine_results_to_csv
+
 from util.subprocesses import run_subprocess
 from util.utils import dedup
 
@@ -202,8 +204,8 @@ def __do_tests(
         thread.join()
         logging.info('"%s" done', thread.name)
 
-    combine_results_to_jsonl(results_dir_for_this_runid)
-    # shutil.rmtree(results_dir_for_this_runid)
+    combine_results_to_csv(results_dir_for_this_runid)
+    shutil.rmtree(results_dir_for_this_runid)
 
 
 def __regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
@@ -388,7 +390,7 @@ def main():
     for batch in batches:
         test_region_pairs(batch, run_id)
 
-    jsonl_to_csv()
+
 
 
 if __name__ == "__main__":

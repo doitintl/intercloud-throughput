@@ -1,24 +1,19 @@
 import csv
-import itertools
+
 import json
 import logging
 import os
-from functools import reduce
-from typing import List, Tuple, Dict
 
-import cloud
-from cloud import clouds
-from cloud.clouds import CloudRegion, get_cloud_region
+from typing import List, Dict
 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
-data_dir= './data'
-__results_csv = f"{data_dir}/results.csv"
+data_dir = './data'
 
-results_jsonl = f"{data_dir}/results.jsonl"
+__results_csv = f"{data_dir}/results.csv"
 
 
 def load_results_csv() -> List[Dict]:
@@ -29,64 +24,38 @@ def load_results_csv() -> List[Dict]:
         return results
 
 
-def __load_results_json() -> List[Dict]:
-    def test_key(d):
-        return d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"]
+def combine_results_to_csv(results_dir_for_this_runid):
+    def json_to_flattened_dict(json_s: str) -> Dict:
+        ret = {}
+        j = json.loads(json_s)
+        for k, v in j.items():
+            if isinstance(v, dict):
+                for k2, v2 in v.items():
+                    assert isinstance(v2, (str, int, float, bool))
+                    ret[f"{k}_{k2}"] = v2
+            else:
+                ret[k] = v
+        return ret
 
-    test_keys = []
-    dups = []
-
-    def load_jsonl_and_convert():
-        dicts = []
-        with open(results_jsonl) as f:
-            for jsonl in f:
-                d = {}
-
-                j = json.loads(jsonl)
-                for k, v in j.items():
-                    if isinstance(v, dict):
-                        for k2, v2 in v.items():
-                            assert isinstance(v2, (str, int, float, bool))
-                            d[f"{k}_{k2}"] = v2
-                    else:
-                        d[k] = v
-                test_key_ = test_key(d)
-                if test_key_ not in test_keys:
-                    dicts.append(d)
-                    test_keys.append(test_key_)
-                else:
-                    dups.append(test_key_)
-        logging.info("%d duplicates in %s: %s", len(dups), results_jsonl, dups)
-        return dicts
-
-    test_results_: List[Dict]
-    test_results_ = load_jsonl_and_convert()
-    test_results_.sort(key=test_key)
-    return test_results_
-
-
-def jsonl_to_csv():
-    def write(dicts):
-        keys = reduce(lambda x, y: x + y, [list(d.keys()) for d in dicts])
-        with open(__results_csv, "w") as f:
-            dict_writer = csv.DictWriter(f, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(dicts)
-
-    test_results_ = __load_results_json()
-    write(test_results_)
-    logging.info("Wrote results.csv")
-
-
-if __name__ == "__main__":
-    jsonl_to_csv()
-
-
-def combine_results_to_jsonl(results_dir_for_this_runid):
     filenames = os.listdir(results_dir_for_this_runid)
-    logging.info(f"Combining %d results into %s", len(filenames), results_jsonl)
-    with open(results_jsonl, "a") as outfile:
-        for fname in filenames:
-            with open(f"{results_dir_for_this_runid}/{fname}") as infile:
-                one_json = infile.read()
-                outfile.write(one_json + "\n")
+    dicts = load_results_csv()
+    logging.info(f"Adding %d new  results into %d existing results in %s", len(filenames),len(dicts), __results_csv)
+
+    keys = None
+    for fname in filenames:
+        with open(f"{results_dir_for_this_runid}/{fname}") as infile:
+            one_json = infile.read()
+            d = json_to_flattened_dict(one_json)
+            if not keys:
+                keys = list(d.keys())
+            else:
+                assert set(d.keys()) == set(
+                    keys), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
+            dicts.append(d)
+
+    with open(__results_csv, "w") as f:
+        dict_writer = csv.DictWriter(
+            f, keys
+        )
+        dict_writer.writeheader()
+        dict_writer.writerows(dicts)
