@@ -28,9 +28,9 @@ def remove_already_attempted(
     old_failures = [p for p in already_attempted if p not in successful_results]
 
     no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
-    #no_redo_any_attempted = list(
+    # no_redo_any_attempted = list(
     #    filter(lambda r: r not in already_attempted, region_pairs)
-    #)
+    # )
     print(
         f"Of {len(region_pairs)} to be tested; "
         f"Will not redo the {len(successful_results)} successes; "

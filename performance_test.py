@@ -271,59 +271,78 @@ def test_region_pairs(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_i
     __setup_and_tests_and_teardown(run_id, regions)
 
 
-def most_frequent_region_first_func(region_pairs)->Callable[[Tuple[CloudRegion, CloudRegion]],  Tuple[int , str]]:
+def most_frequent_region_first_func(
+    region_pairs,
+) -> Callable[[Tuple[CloudRegion, CloudRegion]], Tuple[int, str]]:
     """:return a function that will allow sorting in descending order of freq of appearance
     of a CloudRegion, with the name of the CloudRegion as a tiebreaker"""
-    sources=[r[0] for r in region_pairs]
-    dests=[r[1] for r in region_pairs]
-    both=sources+dests
-    counts=Counter(both)
-    def key_func(pair: Tuple[CloudRegion,CloudRegion])-> Tuple[int , str]:
-        descending_freq=-1*(counts[pair[0]]+counts[pair[1]])
+    sources = [r[0] for r in region_pairs]
+    dests = [r[1] for r in region_pairs]
+    both = sources + dests
+    counts = Counter(both)
+
+    def key_func(pair: Tuple[CloudRegion, CloudRegion]) -> Tuple[int, str]:
+        descending_freq = -1 * (counts[pair[0]] + counts[pair[1]])
         return (descending_freq, repr(pair))
+
     return key_func
 
 
-
-def setup_groups_of_tests(batch_size:int, num_batches:int, only_this_cloud:Cloud):
+def setup_groups_of_tests(batch_size: int, num_batches: int, only_this_cloud: Cloud):
     logging.info("Started at %s", datetime.datetime.now().isoformat())
     run_id = "".join(random.choices(string.ascii_lowercase, k=4))
     region_pairs = __regionpairs()
     region_pairs = remove_already_attempted(region_pairs)
-    region_pairs = sorted(region_pairs, key=most_frequent_region_first_func(region_pairs))
+    region_pairs = sorted(
+        region_pairs, key=most_frequent_region_first_func(region_pairs)
+    )
     if only_this_cloud:
         region_pairs = [
-            r for r in region_pairs if r[0].cloud == only_this_cloud and r[1].cloud == only_this_cloud
+            r
+            for r in region_pairs
+            if r[0].cloud == only_this_cloud and r[1].cloud == only_this_cloud
         ]
     batches = [
-        region_pairs[i: i + batch_size]
+        region_pairs[i : i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
     batches = batches[:num_batches]  # TODO remove line
     tot_len = sum(len(g) for g in batches)
-    logging.info(f"Running test on only {tot_len}")
+    logging.info(f"After filtering where requested for batch size/count and for specific cloud, running test on only {tot_len}")
     return batches, run_id
 
 
 def main():
-    #TODO make these into switches
+    # TODO make these into switches
     # only_this_cloud="GCP" # None for all-clouds
     # batch_size=2
     # num_batches=1
 
-    parser = argparse.ArgumentParser(description='',allow_abbrev=True)
+    parser = argparse.ArgumentParser(description="", allow_abbrev=True)
 
-    parser.add_argument('--num_batches',  default=100_000,
-                        help='Number of batches. Can limit number of tests to be done along with batch_size. Default indicates "do everything")')
-    parser.add_argument('--batch_size',  default=2,  help='batch size')
-    parser.add_argument('--only_this_cloud',  default=None,    help='GCP or AWS. Default means "Do them all"')
+    parser.add_argument("--batch_size", type=int, default=6, help="Batch size")
+
+    parser.add_argument(
+        "--num_batches",type=int,
+        default=100_000,
+        help='Max number of batches. Together with batch_size, this can limit number of tests. Default indicates "do everything")',
+    )
+    parser.add_argument(
+        "--only_this_cloud", type=Cloud,
+        default=None,
+        help='"GCP" or "AWS". Default (None) means "Do them all"',
+    )
 
     args = parser.parse_args()
-    only_this_cloud_o=args.only_this_cloud and Cloud(args.only_this_cloud)
-    batches, run_id = setup_groups_of_tests(args.batch_size, args.num_batches, only_this_cloud_o)
+    batches, run_id = setup_groups_of_tests(
+        args.batch_size, args.num_batches, args.only_this_cloud
+    )
+
     for group in batches:
         test_region_pairs(group, run_id)
+
     jsonl_to_csv()
+
 
 if __name__ == "__main__":
     main()

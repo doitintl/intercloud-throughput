@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 def combine_results_to_jsonl(results_dir_for_this_runid):
     filenames = os.listdir(results_dir_for_this_runid)
-    logging.info(f"Combining %d results into %s",len(filenames),results_jsonl)
+    logging.info(f"Combining %d results into %s", len(filenames), results_jsonl)
     with open(results_jsonl, "a") as outfile:
         for fname in filenames:
             with open(results_dir_for_this_runid + os.sep + fname) as infile:

@@ -129,3 +129,12 @@ GCP,us-west4,GCP,us-central1
 GCP,us-east4,GCP,us-west4
 GCP,us-east1,GCP,us-west2
 GCP,us-west2,GCP,us-central1
+GCP,us-west1,GCP,us-west4
+GCP,us-west4,GCP,us-east1
+GCP,us-west4,GCP,us-east4
+GCP,us-west3,GCP,us-west4
+GCP,us-east4,GCP,us-central1
+GCP,us-west1,GCP,us-central1
+GCP,us-west1,GCP,us-west2
+GCP,us-west2,GCP,us-east1
+GCP,us-east4,GCP,us-west3
