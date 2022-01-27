@@ -11,17 +11,20 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
-data_dir = './data'
+data_dir = "./data"
 
 __results_csv = f"{data_dir}/results.csv"
 
 
 def load_results_csv() -> List[Dict]:
-    with open(__results_csv) as f:
-        reader = csv.reader(f, skipinitialspace=True)
-        header = next(reader)
-        results = [dict(zip(header, row)) for row in reader]
-        return results
+    try:
+        with open(__results_csv) as f:
+            reader = csv.reader(f, skipinitialspace=True)
+            header = next(reader)
+            results = [dict(zip(header, row)) for row in reader]
+            return results
+    except FileNotFoundError:
+        return []
 
 
 def combine_results_to_csv(results_dir_for_this_runid):
@@ -39,7 +42,12 @@ def combine_results_to_csv(results_dir_for_this_runid):
 
     filenames = os.listdir(results_dir_for_this_runid)
     dicts = load_results_csv()
-    logging.info(f"Adding %d new  results into %d existing results in %s", len(filenames),len(dicts), __results_csv)
+    logging.info(
+        f"Adding %d new results into %d existing results in %s",
+        len(filenames),
+        len(dicts),
+        __results_csv,
+    )
 
     keys = None
     for fname in filenames:
@@ -50,12 +58,11 @@ def combine_results_to_csv(results_dir_for_this_runid):
                 keys = list(d.keys())
             else:
                 assert set(d.keys()) == set(
-                    keys), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
+                    keys
+                ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
             dicts.append(d)
 
     with open(__results_csv, "w") as f:
-        dict_writer = csv.DictWriter(
-            f, keys
-        )
+        dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(dicts)

@@ -7,7 +7,7 @@ from cloud.clouds import CloudRegion, get_cloud_region, Cloud
 from history.results import load_results_csv, data_dir
 from util.utils import dedup
 
-__attempted_tests_csv = f"{data_dir}/attempted_tests.csv"
+__attempted_tests_csv = f"{data_dir}/attempted-tests.csv"
 
 logging.basicConfig(
     level=logging.DEBUG,

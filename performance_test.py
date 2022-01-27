@@ -339,7 +339,7 @@ def __batches_of_tests(
         region_pairs[i : i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
-    if num_batches>math.inf:
+    if num_batches > math.inf:
         batches = batches[:num_batches]
     tot_len = sum(len(g) for g in batches)
     logging.info(
@@ -362,9 +362,12 @@ def main():
         "and pairs are separated by semicolon, "
         "as for example: AWS-us-east-1,AWS-us-east-2;AWS-us-west-1,GCP-us-west3",
     )
-    parser.add_argument("--batch_size", type=int, default=6,
-                        help='Size of batch of tests to be run in parallels. Together with num_batches, this can limit number of tests")',
-                        )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=6,
+        help='Size of batch of tests to be run in parallels. Together with num_batches, this can limit number of tests")',
+    )
 
     parser.add_argument(
         "--num_batches",
@@ -389,8 +392,6 @@ def main():
 
     for batch in batches:
         test_region_pairs(batch, run_id)
-
-
 
 
 if __name__ == "__main__":
