@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import pyplot
 
 from history.results import load_results_csv
+from util.utils import set_cwd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,4 +45,5 @@ def graph_full_testing_history():
     plt.show()
 
 if __name__ =="__main__":
+    set_cwd()
     graph_full_testing_history()

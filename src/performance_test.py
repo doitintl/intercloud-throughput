@@ -27,6 +27,7 @@ from cloud.clouds import (
 from history.results import combine_results_to_csv
 
 from util.subprocesses import run_subprocess
+from util.utils import set_cwd, random_id
 
 logging.basicConfig(
     level=logging.INFO,
@@ -388,12 +389,13 @@ def main():
     batches = __batches_of_tests(
         args.batch_size, args.num_batches, args.only_this_cloud, region_pairs
     )
-    run_id = "".join(random.choices(string.ascii_lowercase, k=4))
+    run_id = random_id()
 
     for batch in batches:
         test_region_pairs(batch, run_id)
     graph_full_testing_history()
 
+
 if __name__ == "__main__":
-    #set_pwd()
+    set_cwd()
     main()

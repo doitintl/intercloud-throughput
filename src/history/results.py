@@ -12,7 +12,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
-data_dir = "./data"
+
+data_dir = os.environ.get("PERFTEST_DATADIR","./data")
+logging.info("Data dir is %s", data_dir)
 
 __results_csv = f"{data_dir}/results.csv"
 
@@ -45,7 +47,8 @@ def load_results_csv() -> List[Dict]:
         return []
 
 
-def __log_supernumerary_tests(dicts):
+def log_supernumerary_tests():
+    dicts = load_results_csv()
     by_test_pairs = [
         (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
         for d in dicts
@@ -82,7 +85,7 @@ def combine_results_to_csv(results_dir_for_this_runid):
 
     filenames = os.listdir(results_dir_for_this_runid)
     dicts = load_results_csv()
-    __log_supernumerary_tests(dicts)
+    log_supernumerary_tests()
     logging.info(
         f"Adding %d new results into %d existing results in %s",
         len(filenames),
@@ -109,7 +112,3 @@ def combine_results_to_csv(results_dir_for_this_runid):
         dict_writer.writerows(dicts)
 
 
-if __name__ == "__main__":
-
-    dicts = load_results_csv()
-    __log_supernumerary_tests(dicts)

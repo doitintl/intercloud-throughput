@@ -1,7 +1,7 @@
 import csv
 import inspect
 import itertools
-import os
+import logging
 import re
 from enum import Enum
 from functools import total_ordering
@@ -10,8 +10,6 @@ from typing import List, Optional
 
 import geopy.distance
 
-from history.results import data_dir
-from util import utils
 from util.utils import gcp_default_project
 
 key_for_aws_ssh_basename = "perftest"
@@ -51,13 +49,13 @@ class CloudRegion:
         self.gcp_project = gcp_project
 
     def script(self):
-        return f"{utils.root_dir()}/scripts/{self.lowercase_cloud_name()}-launch.sh"
+        return f"./scripts/{self.lowercase_cloud_name()}-launch.sh"
 
     def deletion_script(self):
-        return f"{utils.root_dir()}/scripts/{self.lowercase_cloud_name()}-delete-instances.sh"
+        return f"./scripts/{self.lowercase_cloud_name()}-delete-instances.sh"
 
     def script_for_test_from_region(self):
-        return f"{utils.root_dir()}/scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
+        return f"./scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
         gcp = "=" + self.gcp_project if self.gcp_project else ""
@@ -117,7 +115,7 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
 
     if not __REGIONS:
 
-        fp = open(f"{utils.root_dir()}/{data_dir}/locations.csv")
+        fp = open(f"./reference_data/locations.csv")
         rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
         for row in rdr:
 
@@ -170,7 +168,8 @@ def interregion_distance(r1: CloudRegion, r2: CloudRegion):
     return ret
 
 
-if __name__ == "__main__":
+def print_interregion_distances():
     pairs = itertools.product(get_regions(), get_regions())
     for pair in pairs:
-        print(pair, interregion_distance(pair[0], pair[1]), "km")
+        logging.info("%s: %s km",pair, interregion_distance(pair[0], pair[1]))
+
