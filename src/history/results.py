@@ -13,10 +13,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-data_dir = os.environ.get("PERFTEST_DATADIR","./data")
-logging.info("Data dir is %s", data_dir)
+results_dir = os.environ.get("PERFTEST_RESULTSDIR", "./results")
+logging.info("Results dir is %s", results_dir)
 
-__results_csv = f"{data_dir}/results.csv"
+__results_csv = f"{results_dir}/results.csv"
 
 
 def load_results_csv() -> List[Dict]:

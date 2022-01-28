@@ -79,7 +79,7 @@ def __create_vms(
 
             if len(for_this_region) != 1:
                 logging.error(
-                    "For region %s found this data %s. Had these VMs %s}",
+                    "For region %s found this results %s. Had these VMs %s}",
                     region,
                     for_this_region,
                     vm_region_and_address_infos,

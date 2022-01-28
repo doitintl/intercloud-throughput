@@ -4,10 +4,10 @@ from typing import List, Tuple, Dict
 
 
 from cloud.clouds import CloudRegion, get_cloud_region, Cloud
-from history.results import load_results_csv, data_dir
+from history.results import load_results_csv, results_dir
 
 
-__attempted_tests_csv = f"{data_dir}/attempted-tests.csv"
+__attempted_tests_csv = f"{results_dir}/attempted-tests.csv"
 
 logging.basicConfig(
     level=logging.INFO,

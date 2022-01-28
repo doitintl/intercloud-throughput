@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#set -x
+set -x
 set -e
 set -u
 >&2 echo $RUN_ID
@@ -11,5 +11,4 @@ while IFS= read -r LINE; do
     NAME=$(echo "$LINE" |awk '{print $1}')
     ZONE=$(echo "$LINE" |awk '{print $2}')
     gcloud compute instances delete -q "${NAME}" --project="${PROJECT_ID}" --zone="${ZONE}"
-
 done <<< "$TO_DELETE"
