@@ -26,10 +26,9 @@ from cloud.clouds import (
 from history.results import combine_results_to_csv
 
 from util.subprocesses import run_subprocess
-from util.utils import dedup
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
@@ -89,7 +88,7 @@ def __create_vms(
 
     vm_region_and_address_infos = []
     threads = []
-    regions_dedup = dedup(regions)
+    regions_dedup = set(regions)
     for cloud_region in regions_dedup:
         thread = threading.Thread(
             name=f"create-{cloud_region}",
@@ -395,4 +394,5 @@ def main():
 
 
 if __name__ == "__main__":
+    #set_pwd()
     main()

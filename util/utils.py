@@ -5,12 +5,16 @@ from util import subprocesses
 GCP_DFLT = None
 
 
-def dedup(lst):
-    ret = []
-    for i in lst:
-        if i not in ret:
-            ret.append(i)
-    return ret
+def set_pwd():
+
+    # Print the current working directory
+    print("Current working directory: {0}".format(os.getcwd()))
+
+    # Change the current working directory
+    os.chdir("/tmp")
+
+    # Print the current working directory
+    print("Current working directory: {0}".format(os.getcwd()))
 
 
 def root_dir():

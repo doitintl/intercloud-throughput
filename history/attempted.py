@@ -10,7 +10,7 @@ from util.utils import dedup
 __attempted_tests_csv = f"{data_dir}/attempted-tests.csv"
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
