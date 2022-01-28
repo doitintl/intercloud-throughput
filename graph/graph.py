@@ -12,7 +12,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-def graphit():
+def graph_full_testing_history():
     results = load_results_csv()
     if not results:
         raise ValueError
@@ -44,4 +44,4 @@ def graphit():
     plt.show()
 
 if __name__ =="__main__":
-    graphit()
+    graph_full_testing_history()

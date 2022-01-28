@@ -14,6 +14,7 @@ from collections import Counter
 
 from typing import List, Dict, Tuple, Callable, Optional
 
+from graph.graph import graph_full_testing_history
 from history.attempted import without_already_attempted, write_attempted_tests
 from cloud.clouds import (
     Cloud,
@@ -391,7 +392,7 @@ def main():
 
     for batch in batches:
         test_region_pairs(batch, run_id)
-
+    graph_full_testing_history()
 
 if __name__ == "__main__":
     #set_pwd()
