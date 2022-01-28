@@ -5,7 +5,9 @@ import json
 import logging
 import os
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
+
+from util.utils import set_cwd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +29,12 @@ def load_results_csv() -> List[Dict]:
                 try:
                     ret[k] = float(v)
                 except ValueError as v:
-                    logging.error("Parsing numbers; for key  %s could not convert %s in %r", k, v, r)
+                    logging.error(
+                        "Parsing numbers; for key  %s could not convert %s in %r",
+                        k,
+                        v,
+                        r,
+                    )
                     raise v
             else:
                 # TODO could convert datetime ; could convert from_cloud to Cloud obj and
@@ -47,27 +54,33 @@ def load_results_csv() -> List[Dict]:
         return []
 
 
-def log_supernumerary_tests():
+def record_supernumerary_tests():
+    def record_test_count(region_pairs: List[Tuple[str, str]], id: str):
+        def region_s(q):
+            return f"{q[0]} {q[1]} to {q[2]} {q[3]}"
+
+        tests_per_regionpair = collections.Counter(region_pairs)
+        regionpair_items = sorted(
+            list(tests_per_regionpair.items()), key=lambda i: -i[1]
+        )
+        regionpair_strings = [f"\t* {v}: {region_s(k)}" for k, v in regionpair_items]
+        s = "\n".join(regionpair_strings)
+        logging.info("%s %s", id, s)
+        with open(results_dir + "/" + f"{id}.csv", "w") as f:
+            replaced = s.replace("\t* ", "").replace(": ", ",").replace(" to ", ",")
+            f.write(replaced)
+
     dicts = load_results_csv()
+    if not dicts:
+        raise ValueError
     by_test_pairs = [
         (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
         for d in dicts
     ]
-    c = collections.Counter(by_test_pairs)
-    items = sorted(list(c.items()), key=lambda i: -i[1])
+    record_test_count(by_test_pairs, "tests_per_regionpair")
 
-    def region_s(q):
-        return f"{q[0]} {q[1]} to {q[2]} {q[3]}"
-
-    items_s = [f"{v}: {region_s(k)}" for k, v in items]
-    s = "\n".join(items_s)
-
-    logging.info("Frequency of test for each pair\n%s", s)
     same_region_tests = [i for i in by_test_pairs if (i[0], i[1]) == (i[2], i[3])]
-    logging.info(
-        "Same-region tests\n%s",
-        "\n".join(set(sorted([region_s(p) for p in same_region_tests]))),
-    )
+    record_test_count(same_region_tests, "sameregionpair_tests")
 
 
 def combine_results_to_csv(results_dir_for_this_runid):
@@ -85,7 +98,8 @@ def combine_results_to_csv(results_dir_for_this_runid):
 
     filenames = os.listdir(results_dir_for_this_runid)
     dicts = load_results_csv()
-    log_supernumerary_tests()
+    record_supernumerary_tests()
+
     logging.info(
         f"Adding %d new results into %d existing results in %s",
         len(filenames),
@@ -112,3 +126,6 @@ def combine_results_to_csv(results_dir_for_this_runid):
         dict_writer.writerows(dicts)
 
 
+if __name__ == "__main__":
+    set_cwd()
+    record_supernumerary_tests()

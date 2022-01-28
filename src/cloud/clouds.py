@@ -171,5 +171,4 @@ def interregion_distance(r1: CloudRegion, r2: CloudRegion):
 def print_interregion_distances():
     pairs = itertools.product(get_regions(), get_regions())
     for pair in pairs:
-        logging.info("%s: %s km",pair, interregion_distance(pair[0], pair[1]))
-
+        logging.info("%s: %s km", pair, interregion_distance(pair[0], pair[1]))
