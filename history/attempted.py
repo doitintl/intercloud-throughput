@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 
 from cloud.clouds import CloudRegion, get_cloud_region, Cloud
 from history.results import load_results_csv, data_dir
-from util.utils import dedup
+
 
 __attempted_tests_csv = f"{data_dir}/attempted-tests.csv"
 
@@ -41,7 +41,7 @@ def without_already_attempted(
 
 
 def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
-    return dedup(
+    return set(
         [
             (
                 get_cloud_region(Cloud(d["from_cloud"]), d["from_region"]),
