@@ -3,7 +3,7 @@ import logging
 from typing import List, Tuple, Dict
 
 
-from cloud.clouds import CloudRegion, get_cloud_region, Cloud
+from cloud.clouds import CloudRegion, get_region, Cloud
 from history.results import load_results_csv, results_dir
 
 
@@ -44,8 +44,8 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     return set(
         [
             (
-                get_cloud_region(Cloud(d["from_cloud"]), d["from_region"]),
-                get_cloud_region(Cloud(d["to_cloud"]), d["to_region"]),
+                get_region(d["from_cloud"], d["from_region"]),
+                get_region(d["to_cloud"], d["to_region"]),
             )
             for d in dicts
         ]

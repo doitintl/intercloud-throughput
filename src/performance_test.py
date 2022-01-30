@@ -22,7 +22,7 @@ from cloud.clouds import (
     interregion_distance,
     get_regions,
     key_for_aws_ssh_basename,
-    get_cloud_region,
+    get_region,
 )
 from history.results import combine_results_to_csv
 
@@ -158,7 +158,6 @@ def __do_tests(
         )
         test_result = process_stdout + "\n"
         result_j = json.loads(test_result)
-        result_j["distance"] = interregion_distance(src_region_, dst_region_)
 
         results_for_one_run_file = (
             f"{results_dir_for_this_runid}/results-{src_region_}-to-{dst_region_}.json"
@@ -306,7 +305,7 @@ def __parse_region_pairs(
             raise ValueError(f"{s} not a value cloud-region string")
         cloud_s = s[0:dash_idx]
         region_s = s[dash_idx + 1 :]
-        return get_cloud_region(Cloud(cloud_s), region_s)
+        return get_region(cloud_s, region_s)
 
     pairs_s = region_pairs.split(";")
     pairs_str_2item_list = [p.split(",") for p in pairs_s]

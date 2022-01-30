@@ -10,7 +10,7 @@ from typing import List, Optional
 
 import geopy.distance
 
-from util.utils import gcp_default_project
+from util.utils import gcp_default_project, set_cwd
 
 key_for_aws_ssh_basename = "perftest"
 
@@ -38,9 +38,9 @@ class CloudRegion:
         assert (
             calframe[1][3] == "get_regions"
         ), "Call this only in building the regions list"
-
+        assert isinstance(cloud, Cloud), type(cloud)
         assert re.match(r"[a-z][a-z-]+\d$", region_id)
-        assert (cloud == Cloud.GCP) == bool(gcp_project)
+        assert (cloud == Cloud.GCP) == bool(gcp_project), f"{cloud} and {gcp_project}"
 
         self.lat = lat
         self.long = long
@@ -119,35 +119,37 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
         rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
         for row in rdr:
 
-            lat_s = row.get("lat")
-            long_s = row.get("long")
+            lat_s = row["latitude"]
+            long_s = row["longitude"]
             if lat_s is not None and long_s is not None:
                 lat = float(lat_s)
                 long = float(long_s)
             else:
                 lat = long = None
 
-            cloud_ = row["cloud"]
+            cloud_s = row["cloud"]
 
             __REGIONS.append(
                 CloudRegion(
-                    Cloud(cloud_),
+                    Cloud(cloud_s),
                     row["region"],
                     lat,
                     long,
-                    gcp_proj(cloud_, gcp_project),
+                    gcp_proj(cloud_s, gcp_project),
                 )
             )
         fp.close()
     return __REGIONS
 
 
-def get_cloud_region(
-    cloud: Cloud,
+def get_region(
+    cloud: [Cloud|str],
     region_id: str,
     gcp_project: Optional[str] = None,
 ):
     regions = get_regions(gcp_project)
+    if isinstance(cloud, str):
+        cloud=Cloud(cloud)
     assert isinstance(cloud, Cloud), cloud
     matches = [r for r in regions if r.cloud == cloud and r.region_id == region_id]
     if not matches:
@@ -160,9 +162,7 @@ def get_cloud_region(
 
 
 def interregion_distance(r1: CloudRegion, r2: CloudRegion):
-    assert not [
-        x for x in [r1.lat, r1.long, r2.lat, r2.long] if x is None
-    ], f"All regions should have coords {r1}, {r2}"
+
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
     assert (r1 == r2) == (ret == 0), "Expect 0 km if and only if same region"
     return ret
@@ -172,3 +172,8 @@ def print_interregion_distances():
     pairs = itertools.product(get_regions(), get_regions())
     for pair in pairs:
         logging.info("%s: %s km", pair, interregion_distance(pair[0], pair[1]))
+
+
+if __name__ == '__main__':
+    set_cwd()
+    print_interregion_distances()
