@@ -1,0 +1,797 @@
+{
+  "source":   "https://stackoverflow.com/questions/14944510/where-are-aws-ec2-availability-zones-exactly",
+"regions":[
+  {
+    "az": "af-south-1c",
+    "longitude": 18.424100875854492,
+    "latitude": -33.92490005493164,
+    "continent": {
+      "code": "AF",
+      "name": "Africa"
+    },
+    "country": {
+      "code": "ZA",
+      "name": "South Africa",
+      "flag": "🇿🇦"
+    },
+    "region": {
+      "code": "WC",
+      "name": "Western Cape"
+    },
+    "city": {
+      "name": "Cape Town"
+    },
+    "postcode": 8001
+  },
+  {
+    "az": "ap-northeast-1a",
+    "longitude": 139.73855590820312,
+    "latitude": 35.69628143310547,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "JP",
+      "name": "Japan",
+      "flag": "🇯🇵"
+    },
+    "region": {
+      "code": 13,
+      "name": "Tokyo"
+    },
+    "city": {
+      "name": "Tokyo"
+    },
+    "postcode": "162-0843"
+  },
+  {
+    "az": "ap-northeast-1c",
+    "longitude": 139.73855590820312,
+    "latitude": 35.69628143310547,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "JP",
+      "name": "Japan",
+      "flag": "🇯🇵"
+    },
+    "region": {
+      "code": 13,
+      "name": "Tokyo"
+    },
+    "city": {
+      "name": "Tokyo"
+    },
+    "postcode": "162-0843"
+  },
+  {
+    "az": "ap-northeast-1d",
+    "longitude": 139.73855590820312,
+    "latitude": 35.69628143310547,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "JP",
+      "name": "Japan",
+      "flag": "🇯🇵"
+    },
+    "region": {
+      "code": 13,
+      "name": "Tokyo"
+    },
+    "city": {
+      "name": "Tokyo"
+    },
+    "postcode": "162-0843"
+  },
+  {
+    "az": "ap-northeast-2a",
+    "longitude": 126.620361328125,
+    "latitude": 37.473548889160156,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "KR",
+      "name": "South Korea",
+      "flag": "🇰🇷"
+    },
+    "region": {
+      "code": 28,
+      "name": "Incheon"
+    },
+    "city": {
+      "name": "Incheon"
+    },
+    "postcode": "400-011"
+  },
+  {
+    "az": "ap-northeast-3c",
+    "longitude": 135.50750732421875,
+    "latitude": 34.67094039916992,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "JP",
+      "name": "Japan",
+      "flag": "🇯🇵"
+    },
+    "region": {
+      "code": 27,
+      "name": "Ōsaka"
+    },
+    "city": {
+      "name": "Osaka"
+    },
+    "postcode": "542-0082"
+  },
+  {
+    "az": "ap-southeast-1a",
+    "longitude": 103.8517837524414,
+    "latitude": 1.287950038909912,
+    "continent": {
+      "code": "AS",
+      "name": "Asia"
+    },
+    "country": {
+      "code": "SG",
+      "name": "Singapore",
+      "flag": "🇸🇬"
+    },
+    "region": {
+      "code": 1,
+      "name": "Central Singapore"
+    },
+    "city": {
+      "name": "Singapore"
+    },
+    "postcode": null
+  },
+  {
+    "az": "ap-southeast-1c",
+    "longitude": -73.44097137451172,
+    "latitude": 41.126861572265625,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "CT",
+      "name": "Connecticut"
+    },
+    "city": {
+      "name": "East Norwalk"
+    },
+    "postcode": "06850"
+  },
+  {
+    "az": "ap-southeast-2a",
+    "longitude": 151.2071075439453,
+    "latitude": -33.86714172363281,
+    "continent": {
+      "code": "OC",
+      "name": "Oceania"
+    },
+    "country": {
+      "code": "AU",
+      "name": "Australia",
+      "flag": "🇦🇺"
+    },
+    "region": {
+      "code": "NSW",
+      "name": "New South Wales"
+    },
+    "city": {
+      "name": "Sydney"
+    },
+    "postcode": 2000
+  },
+  {
+    "az": "ap-southeast-2b",
+    "longitude": 151.2071075439453,
+    "latitude": -33.86714172363281,
+    "continent": {
+      "code": "OC",
+      "name": "Oceania"
+    },
+    "country": {
+      "code": "AU",
+      "name": "Australia",
+      "flag": "🇦🇺"
+    },
+    "region": {
+      "code": "NSW",
+      "name": "New South Wales"
+    },
+    "city": {
+      "name": "Sydney"
+    },
+    "postcode": 2000
+  },
+  {
+    "az": "ca-central-1a",
+    "longitude": -73.56201171875,
+    "latitude": 45.502079010009766,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "CA",
+      "name": "Canada",
+      "flag": "🇨🇦"
+    },
+    "region": {
+      "code": "QC",
+      "name": "Quebec"
+    },
+    "city": {
+      "name": "Montréal"
+    },
+    "postcode": "H2Y 2J7"
+  },
+  {
+    "az": "ca-central-1b",
+    "longitude": -73.56201171875,
+    "latitude": 45.502079010009766,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "CA",
+      "name": "Canada",
+      "flag": "🇨🇦"
+    },
+    "region": {
+      "code": "QC",
+      "name": "Quebec"
+    },
+    "city": {
+      "name": "Montréal"
+    },
+    "postcode": "H2Y 2J7"
+  },
+  {
+    "az": "eu-central-1c",
+    "longitude": 8.682100296020508,
+    "latitude": 50.11090087890625,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "DE",
+      "name": "Germany",
+      "flag": "🇩🇪"
+    },
+    "region": {
+      "code": "HE",
+      "name": "Hesse"
+    },
+    "city": {
+      "name": "Frankfurt am Main"
+    },
+    "postcode": 60311
+  },
+  {
+    "az": "eu-north-1a",
+    "longitude": 18.051319122314453,
+    "latitude": 59.315120697021484,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "SE",
+      "name": "Sweden",
+      "flag": "🇸🇪"
+    },
+    "region": {
+      "code": "AB",
+      "name": "Stockholm"
+    },
+    "city": {
+      "name": "Stockholm"
+    },
+    "postcode": "118 58"
+  },
+  {
+    "az": "eu-north-1b",
+    "longitude": 18.051319122314453,
+    "latitude": 59.315120697021484,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "SE",
+      "name": "Sweden",
+      "flag": "🇸🇪"
+    },
+    "region": {
+      "code": "AB",
+      "name": "Stockholm"
+    },
+    "city": {
+      "name": "Stockholm"
+    },
+    "postcode": "118 58"
+  },
+  {
+    "az": "eu-north-1c",
+    "longitude": 18.051319122314453,
+    "latitude": 59.315120697021484,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "SE",
+      "name": "Sweden",
+      "flag": "🇸🇪"
+    },
+    "region": {
+      "code": "AB",
+      "name": "Stockholm"
+    },
+    "city": {
+      "name": "Stockholm"
+    },
+    "postcode": "118 58"
+  },
+  {
+    "az": "eu-south-1a",
+    "longitude": 9.192000389099121,
+    "latitude": 45.47200012207031,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IT",
+      "name": "Italy",
+      "flag": "🇮🇹"
+    },
+    "region": {
+      "code": 25,
+      "name": "Lombardy"
+    },
+    "city": {
+      "name": "Milan"
+    },
+    "postcode": 20121
+  },
+  {
+    "az": "eu-south-1b",
+    "longitude": 9.192000389099121,
+    "latitude": 45.47200012207031,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IT",
+      "name": "Italy",
+      "flag": "🇮🇹"
+    },
+    "region": {
+      "code": 25,
+      "name": "Lombardy"
+    },
+    "city": {
+      "name": "Milan"
+    },
+    "postcode": 20121
+  },
+  {
+    "az": "eu-south-1b",
+    "longitude": 9.192899703979492,
+    "latitude": 45.48379898071289,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IT",
+      "name": "Italy",
+      "flag": "🇮🇹"
+    },
+    "region": {
+      "code": 25,
+      "name": "Lombardy"
+    },
+    "city": {
+      "name": "Milan"
+    },
+    "postcode": 20124
+  },
+  {
+    "az": "eu-south-1c",
+    "longitude": 9.192000389099121,
+    "latitude": 45.47200012207031,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IT",
+      "name": "Italy",
+      "flag": "🇮🇹"
+    },
+    "region": {
+      "code": 25,
+      "name": "Lombardy"
+    },
+    "city": {
+      "name": "Milan"
+    },
+    "postcode": 20121
+  },
+  {
+    "az": "eu-west-1a",
+    "longitude": -6.243330001831055,
+    "latitude": 53.35388946533203,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IE",
+      "name": "Ireland",
+      "flag": "🇮🇪"
+    },
+    "region": {
+      "code": "L",
+      "name": "Leinster"
+    },
+    "city": {
+      "name": "Dublin"
+    },
+    "postcode": null
+  },
+  {
+    "az": "eu-west-1b",
+    "longitude": -6.243330001831055,
+    "latitude": 53.35388946533203,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IE",
+      "name": "Ireland",
+      "flag": "🇮🇪"
+    },
+    "region": {
+      "code": "L",
+      "name": "Leinster"
+    },
+    "city": {
+      "name": "Dublin"
+    },
+    "postcode": null
+  },
+  {
+    "az": "eu-west-1c",
+    "longitude": -6.243330001831055,
+    "latitude": 53.35388946533203,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "IE",
+      "name": "Ireland",
+      "flag": "🇮🇪"
+    },
+    "region": {
+      "code": "L",
+      "name": "Leinster"
+    },
+    "city": {
+      "name": "Dublin"
+    },
+    "postcode": null
+  },
+  {
+    "az": "eu-west-2c",
+    "longitude": -0.12574,
+    "latitude": 51.5122184753418,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "GB",
+      "name": "United Kingdom",
+      "flag": "🇬🇧"
+    },
+    "region": {
+      "code": "ENG",
+      "name": "England"
+    },
+    "city": {
+      "name": "Blackheath"
+    },
+    "postcode": "EC1M"
+  },
+  {
+    "az": "eu-west-2c",
+    "longitude": 0,
+    "latitude": 51.5122184753418,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "GB",
+      "name": "United Kingdom",
+      "flag": "🇬🇧"
+    },
+    "region": {
+      "code": "ENG",
+      "name": "England"
+    },
+    "city": {
+      "name": "Blackheath"
+    },
+    "postcode": "EC1M"
+  },
+  {
+    "az": "eu-west-3a",
+    "longitude": 2.3410699367523193,
+    "latitude": 48.8602294921875,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "FR",
+      "name": "France",
+      "flag": "🇫🇷"
+    },
+    "region": {
+      "code": "IDF",
+      "name": "Île-de-France"
+    },
+    "city": {
+      "name": "Saint-Ouen"
+    },
+    "postcode": 75001
+  },
+  {
+    "az": "eu-west-3c",
+    "longitude": 2.3410699367523193,
+    "latitude": 48.8602294921875,
+    "continent": {
+      "code": "EU",
+      "name": "Europe"
+    },
+    "country": {
+      "code": "FR",
+      "name": "France",
+      "flag": "🇫🇷"
+    },
+    "region": {
+      "code": "IDF",
+      "name": "Île-de-France"
+    },
+    "city": {
+      "name": "Saint-Ouen"
+    },
+    "postcode": 75001
+  },
+  {
+    "az": "us-east-1b",
+    "longitude": -77.47419738769531,
+    "latitude": 39.043701171875,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "VA",
+      "name": "Virginia"
+    },
+    "city": {
+      "name": "Ashburn"
+    },
+    "postcode": 20147
+  },
+  {
+    "az": "us-east-1c",
+    "longitude": -77.47419738769531,
+    "latitude": 39.043701171875,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "VA",
+      "name": "Virginia"
+    },
+    "city": {
+      "name": "Ashburn"
+    },
+    "postcode": 20147
+  },
+  {
+    "az": "us-east-1d",
+    "longitude": -77.47419738769531,
+    "latitude": 39.043701171875,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "VA",
+      "name": "Virginia"
+    },
+    "city": {
+      "name": "Ashburn"
+    },
+    "postcode": 20147
+  },
+  {
+    "az": "us-east-1f",
+    "longitude": -77.47419738769531,
+    "latitude": 39.043701171875,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "VA",
+      "name": "Virginia"
+    },
+    "city": {
+      "name": "Ashburn"
+    },
+    "postcode": 20147
+  },
+  {
+    "az": "us-east-2b",
+    "longitude": -82.99945831298828,
+    "latitude": 39.99557876586914,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "OH",
+      "name": "Ohio"
+    },
+    "city": {
+      "name": "Columbus"
+    },
+    "postcode": 43201
+  },
+  {
+    "az": "us-east-2c",
+    "longitude": -82.99945831298828,
+    "latitude": 39.99557876586914,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "OH",
+      "name": "Ohio"
+    },
+    "city": {
+      "name": "Columbus"
+    },
+    "postcode": 43201
+  },
+  {
+    "az": "us-west-1a",
+    "longitude": -121.83822631835938,
+    "latitude": 37.330528259277344,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "CA",
+      "name": "California"
+    },
+    "city": {
+      "name": "San Jose"
+    },
+    "postcode": 95122
+  },
+  {
+    "az": "us-west-1b",
+    "longitude": -121.83822631835938,
+    "latitude": 37.330528259277344,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "CA",
+      "name": "California"
+    },
+    "city": {
+      "name": "San Jose"
+    },
+    "postcode": 95122
+  },
+  {
+    "az": "us-west-2d",
+    "longitude": -119.81143188476562,
+    "latitude": 45.73722839355469,
+    "continent": {
+      "code": "NA",
+      "name": "North America"
+    },
+    "country": {
+      "code": "US",
+      "name": "United States",
+      "flag": "🇺🇸"
+    },
+    "region": {
+      "code": "OR",
+      "name": "Oregon"
+    },
+    "city": {
+      "name": "Boardman"
+    },
+    "postcode": 97818
+  }
+]
+}

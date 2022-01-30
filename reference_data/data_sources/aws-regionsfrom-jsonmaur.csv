@@ -1,0 +1,17 @@
+source,cloud,region,latitude,longitude
+#https://github.com/jsonmaur/aws-regions/issues/11
+jsonmaur,AWS,us-east-1,38.13,-78.45
+jsonmaur,AWS,us-east-2,39.96,-83
+jsonmaur,AWS,us-west-1,37.35,-121.96
+jsonmaur,AWS,us-west-2,46.15,-123.88
+jsonmaur,AWS,eu-west-1,53,-8
+jsonmaur,AWS,eu-west-2,51,-0.1
+jsonmaur,AWS,eu-west-3,48.86,2.35
+jsonmaur,AWS,eu-central-1,50,8
+jsonmaur,AWS,sa-east-1,-23.34,-46.38
+jsonmaur,AWS,ap-southeast-1,1.37,103.8
+jsonmaur,AWS,ap-southeast-2,-33.86,151.2
+jsonmaur,AWS,ap-northeast-1,35.41,139.42
+jsonmaur,AWS,ap-northeast-2,37.56,126.98
+jsonmaur,AWS,ap-south-1,19.08,72.88
+jsonmaur,AWS,ca-central-1,45.5,-73.6

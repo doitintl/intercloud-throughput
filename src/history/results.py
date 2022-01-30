@@ -55,20 +55,22 @@ def load_results_csv() -> List[Dict]:
 
 
 def record_supernumerary_tests():
-    def record_test_count(region_pairs: List[Tuple[str, str]], id: str):
-        def region_s(q):
-            return f"{q[0]} {q[1]} to {q[2]} {q[3]}"
-
+    def record_test_count(
+        title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id: str
+    ):
         tests_per_regionpair = collections.Counter(region_pairs)
         regionpair_items = sorted(
             list(tests_per_regionpair.items()), key=lambda i: -i[1]
         )
-        regionpair_strings = [f"\t* {v}: {region_s(k)}" for k, v in regionpair_items]
+        regionpair_strings = [
+            f"{v},{k[0]},{k[1]},{k[2]},{k[3]}" for k, v in regionpair_items
+        ]
         s = "\n".join(regionpair_strings)
         logging.info("%s %s", id, s)
         with open(results_dir + "/" + f"{id}.csv", "w") as f:
-            replaced = s.replace("\t* ", "").replace(": ", ",").replace(" to ", ",")
-            f.write(replaced)
+            f.write("#" + title + "\n")
+            f.write(",".join(hdrs) + "\n")
+            f.write(s)
 
     dicts = load_results_csv()
     if not dicts:
@@ -77,10 +79,14 @@ def record_supernumerary_tests():
         (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
         for d in dicts
     ]
-    record_test_count(by_test_pairs, "tests_per_regionpair")
-
-    same_region_tests = [i for i in by_test_pairs if (i[0], i[1]) == (i[2], i[3])]
-    record_test_count(same_region_tests, "sameregionpair_tests")
+    hdr = ["count", "from_cloud", "from_region", "to_cloud", "to_region"]
+    record_test_count(
+        "Tests per Region Pair", hdr, by_test_pairs, "tests_per_regionpair"
+    )
+    intraregion_tests = list(
+        filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
+    )
+    record_test_count("Intraregion tests", hdr, intraregion_tests, "intraregion_tests")
 
 
 def combine_results_to_csv(results_dir_for_this_runid):

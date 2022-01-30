@@ -4,9 +4,8 @@ set -x
 set -e
 set -u
 
->&2 echo $REGION
->&2 echo $RUN_ID
-
+[ -v $RUN_ID ]
+[ -v $REGION ]
 
 CLIENT_INSTANCE_IDS=$(aws ec2 describe-instances --region $REGION --query 'Reservations[].Instances[].InstanceId' --filters "Name=tag:run-id,Values=${RUN_ID}" --output text)
 

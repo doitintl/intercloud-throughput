@@ -4,18 +4,15 @@ set -x
 set -e
 set -u
 
-
 # Check that variables are set
->&2 echo "$RUN_ID"
->&2 echo "$SERVER_PUBLIC_ADDRESS"
->&2 echo "$CLIENT_NAME"
->&2 echo "$CLIENT_ZONE"
-
->&2 echo "$SERVER_CLOUD"
->&2 echo "$CLIENT_CLOUD"
->&2 echo "$SERVER_REGION"
->&2 echo "$CLIENT_REGION"
-
+[ -v $RUN_ID ]
+[ -v $SERVER_PUBLIC_ADDRESS ]
+[ -v $CLIENT_NAME ]
+[ -v $CLIENT_ZONE ]
+[ -v $SERVER_CLOUD ]
+[ -v $CLIENT_CLOUD ]
+[ -v $SERVER_REGION ]
+[ -v $CLIENT_REGION ]
 
 IPERF_OUTPUT=""
 

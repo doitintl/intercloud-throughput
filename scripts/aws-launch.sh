@@ -5,9 +5,9 @@ set -u
 
 
 # Check that variables are set
->&2 echo $RUN_ID
->&2 echo $REGION
->&2 echo $BASE_KEYNAME
+[ -v $RUN_ID ]
+[ -v $REGION ]
+[ -v $BASE_KEYNAME ]
 
 SG=intercloud-sg
 

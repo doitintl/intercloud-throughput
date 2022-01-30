@@ -8,14 +8,17 @@ export SG=intercloud
 
 
 # Check that variables are set
->&2 echo "$RUN_ID"
->&2 echo "$SERVER_PUBLIC_ADDRESS"
->&2 echo "$CLIENT_PUBLIC_ADDRESS"
->&2 echo "$SERVER_CLOUD"
->&2 echo "$CLIENT_CLOUD"
->&2 echo "$SERVER_REGION"
->&2 echo "$CLIENT_REGION"
->&2 echo $BASE_KEYNAME
+
+[ -v $RUN_ID ]
+[ -v $SERVER_PUBLIC_ADDRESS ]
+[ -v $CLIENT_PUBLIC_ADDRESS ]
+[ -v $SERVER_CLOUD ]
+[ -v $CLIENT_CLOUD ]
+[ -v $SERVER_REGION ]
+[ -v $CLIENT_REGION ]
+[ -v $BASE_KEYNAME ]
+
+
 CLIENT_REGION_KEYNAME=${BASE_KEYNAME}-${CLIENT_REGION}
 CLIENT_REGION_KEYFILE=./aws-pems/${CLIENT_REGION_KEYNAME}.pem
 

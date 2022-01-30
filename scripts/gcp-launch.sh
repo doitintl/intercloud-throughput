@@ -3,9 +3,11 @@ set -x
 set -e
 set -u
 
->&2 echo $PROJECT_ID
->&2 echo $REGION
->&2 echo $RUN_ID
+[ -v $RUN_ID ]
+[ -v $PROJECT_ID ]
+[ -v $REGION ]
+[ -v $SERVER_PUBLIC_ADDRESS ]
+
 
 NAME="intercloud-${REGION}-${RUN_ID}"
 ZONE=${REGION}-b

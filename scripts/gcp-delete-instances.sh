@@ -2,8 +2,9 @@
 set -x
 set -e
 set -u
->&2 echo $RUN_ID
->&2 echo $PROJECT_ID
+
+[ -v $RUN_ID ]
+[ -v $PROJECT_ID ]
 
 
 TO_DELETE=$(gcloud compute instances list --filter "labels.run-id=$RUN_ID" --format "table[no-heading](NAME,ZONE)")

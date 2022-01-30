@@ -1,0 +1,23 @@
+source,cloud,region,latitude,longitude
+#Source https://gist.github.com/c1982/63ad5f170983af770dba1899719cf77a
+MaestroPanel,AWS,ap-east-1,22.302711,114.177216
+MaestroPanel,AWS,ap-northeast-1,35.689487,139.691711
+MaestroPanel,AWS,ap-northeast-2,37.566536,126.977966
+MaestroPanel,AWS,ap-northeast-3,34.693737,135.502167
+MaestroPanel,AWS,ap-southeast-1,1.352083,103.819839
+MaestroPanel,AWS,ap-southeast-2,-33.868820,151.209290
+MaestroPanel,AWS,ap-south-1,19.0760,72.8777
+MaestroPanel,AWS,ca-central-1,45.5017,-73.5673
+MaestroPanel,AWS,af-south-1,-33.9249,18.4241
+MaestroPanel,AWS,eu-north-1,59.3293,18.0686
+MaestroPanel,AWS,eu-central-1,50.1109,8.6821
+MaestroPanel,AWS,eu-west-1,53.1424,-7.6921
+MaestroPanel,AWS,eu-west-2,51.5074,0.1278
+MaestroPanel,AWS,eu-west-3,48.8566,2.3522
+MaestroPanel,AWS,eu-south-1,45.4642,9.1900
+MaestroPanel,AWS,me-south-1,26.0667,50.5577
+MaestroPanel,AWS,sa-east-1,-23.5505,-46.6333
+MaestroPanel,AWS,us-east-1,37.4316,-78.6569
+MaestroPanel,AWS,us-east-2,40.4173,-82.9071
+MaestroPanel,AWS,us-west-1,36.7783,-122.08
+MaestroPanel,AWS,us-west-2,44.000000,-120.500000
