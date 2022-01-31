@@ -1,32 +1,26 @@
 import argparse
-
 import datetime
-import functools
 import itertools
 import json
 import logging
 import math
 import os
-import random
 import shutil
-import string
 import threading
 from collections import Counter
-
 from typing import List, Dict, Tuple, Callable, Optional
 
-from graph.graph import graph_full_testing_history
-from history.attempted import without_already_attempted, write_attempted_tests
+from cloud.aws_regions_supported_for_auth import is_unsupported_auth_aws_region
 from cloud.clouds import (
     Cloud,
     CloudRegion,
-    interregion_distance,
     get_regions,
     key_for_aws_ssh_basename,
     get_region,
 )
+from graph.graph import graph_full_testing_history
+from history.attempted import without_already_attempted, write_attempted_tests
 from history.results import combine_results_to_csv
-
 from util.subprocesses import run_subprocess
 from util.utils import set_cwd, random_id, dedup
 
@@ -317,59 +311,6 @@ def __parse_region_pairs(
     ]
     return pairs_regions
 
-
-__SUPPORTED_AWS_REGIONS_CACHE = {}
-__AWS_REGIONS_SUPPORT_CACHE_FILE = "reference_data/supported_aws_regions.json"
-
-
-def __supported_aws_regions_cache() :
-    global __SUPPORTED_AWS_REGIONS_CACHE
-    if __SUPPORTED_AWS_REGIONS_CACHE:  # We will alwaysload empty file until we have some values, then we'll have a cache
-        return __SUPPORTED_AWS_REGIONS_CACHE
-
-    try:
-        with open(__AWS_REGIONS_SUPPORT_CACHE_FILE) as f:
-         __SUPPORTED_AWS_REGIONS_CACHE = json.load(f)
-         logging.info("Loaded %s as unsupported AWS Regions", __SUPPORTED_AWS_REGIONS_CACHE)
-
-    except FileNotFoundError:
-        __SUPPORTED_AWS_REGIONS_CACHE={}
-
-    return __SUPPORTED_AWS_REGIONS_CACHE
-
-
-
-def __add_to_supported_aws_regions_cache(r: str, is_supported:bool):
-    global __SUPPORTED_AWS_REGIONS_CACHE
-    __SUPPORTED_AWS_REGIONS_CACHE[r]=is_supported
-    __SUPPORTED_AWS_REGIONS_CACHE=dict(sorted(__SUPPORTED_AWS_REGIONS_CACHE.items(), key=lambda i: (i[1], i[0])))
-    with open(__AWS_REGIONS_SUPPORT_CACHE_FILE, "w") as f:
-        logging.info("Adding %s, AWS supported region: %s", r, is_supported)
-        json.dump( __SUPPORTED_AWS_REGIONS_CACHE, f, indent=2)
-
-
-
-def __is_unsupported_aws_region(r: CloudRegion):
-    if r.cloud != Cloud.AWS:
-        return False
-
-    cached_value =__supported_aws_regions_cache().get(r.region_id,None)
-    if cached_value is not None:
-        return not cached_value
-
-    try:
-        run_subprocess(
-            "./scripts/aws-test-acn.sh",
-            env={"PATH": os.environ.get("PATH"), "REGION": r.region_id},
-        )
-    except ChildProcessError as cpe:
-        is_supported = False
-    else:
-        is_supported =  True
-    logging.info("Discovered %s is a %s AWS region", r.region_id , "supported" if is_supported else "unsupported")
-    __add_to_supported_aws_regions_cache(r.region_id, is_supported)
-    return not is_supported
-
 def __batches_of_tests(
     batch_size: int,
     max_batches: int,
@@ -392,28 +333,17 @@ def __batches_of_tests(
             if p[0].cloud == only_this_cloud and p[1].cloud == only_this_cloud
         ]
 
-    def has_unsupported_aws_region(p):
-        return any(__is_unsupported_aws_region(p[i]) for i in [0, 1])
+    def has_unsupported_acn_aws_region(p):
+        return any(is_unsupported_auth_aws_region(p[i]) for i in [0, 1])
 
     before_filter_unsup = len(region_pairs)
-    region_pairs = [p for p in region_pairs if not has_unsupported_aws_region(p)]
+    region_pairs = [p for p in region_pairs if not has_unsupported_acn_aws_region(p)]
     if len(region_pairs) < before_filter_unsup:
-        logging.info("Dropped %d pairs with an unsupported AWS region", before_filter_unsup-len(region_pairs)    )
-
-    def gov_or_cn(p: Tuple):
-        return any(
-            (
-                p[i].cloud == Cloud.AWS
-                and ("-gov-" in p[i].region_id or p[i].region_id.startswith("cn-"))
-                for i in [0, 1]
-            )
+        logging.info(
+            "Dropped %d pairs with an unsupported AWS region",
+            before_filter_unsup - len(region_pairs),
         )
 
-    with_gov_and_china = len(region_pairs)
-    region_pairs = [p for p in region_pairs if not gov_or_cn(p)]
-    logging.info(
-        "Ignoring %d gov or China AWS reigons", with_gov_and_china - len(region_pairs)
-    )
     batches = [
         region_pairs[i : i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
