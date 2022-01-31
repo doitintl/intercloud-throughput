@@ -3,12 +3,6 @@ set -x
 set -e
 set -u
 
-[ -v $RUN_ID ]
-[ -v $PROJECT_ID ]
-[ -v $REGION ]
-[ -v $SERVER_PUBLIC_ADDRESS ]
-
-
 NAME="intercloud-${REGION}-${RUN_ID}"
 ZONE=${REGION}-b
 

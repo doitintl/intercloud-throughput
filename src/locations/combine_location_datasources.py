@@ -37,14 +37,13 @@ def __combine():
         geoloc_data |= stat_long
         for d in data:
             geoloc_data[d["source"] + "_long"] = d["longitude"]
-        geoloc_data['latitude']=geoloc_data['lat_median']
-        geoloc_data['longitude'] = geoloc_data['long_median']
+        geoloc_data["latitude"] = geoloc_data["lat_median"]
+        geoloc_data["longitude"] = geoloc_data["long_median"]
         geoloc[region_name] = geoloc_data
 
-    geoloc_list=list(filter(lambda g: g['cloud'] in ["AWS", "GCP"] , geoloc.values()))
+    geoloc_list = list(filter(lambda g: g["cloud"] in ["AWS", "GCP"], geoloc.values()))
 
     keys = [
-
         "cloud",
         "region",
         "latitude",
@@ -72,7 +71,7 @@ def __combine():
         "datacenters.com_long",
         "jsonmaur_long",
         "yugabyte_long",
-        "source"
+        "source",
     ]
 
     with open("./reference_data/locations.csv", "w") as f:

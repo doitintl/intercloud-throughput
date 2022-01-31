@@ -3,11 +3,8 @@ set -x
 set -e
 set -u
 
-
 # Check that variables are set
-[ -v $RUN_ID ]
-[ -v $REGION ]
-[ -v $BASE_KEYNAME ]
+
 
 SG=intercloud-sg
 

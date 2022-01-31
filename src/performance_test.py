@@ -27,7 +27,7 @@ from cloud.clouds import (
 from history.results import combine_results_to_csv
 
 from util.subprocesses import run_subprocess
-from util.utils import set_cwd, random_id
+from util.utils import set_cwd, random_id, dedup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,15 +71,15 @@ def __create_vms(
 
     def sort_addr_by_region(
         vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]],
-        regions: List[CloudRegion],
+        regions_: List[CloudRegion],
     ):
         ret = []
-        for region in regions:
+        for region in regions_:
             for_this_region = [t for t in vm_region_and_address_infos if t[0] == region]
 
             if len(for_this_region) != 1:
                 logging.error(
-                    "For region %s found this results %s. Had these VMs %s}",
+                    "For region %s found these results %s. Had these VMs %s}",
                     region,
                     for_this_region,
                     vm_region_and_address_infos,
@@ -90,7 +90,7 @@ def __create_vms(
 
     vm_region_and_address_infos = []
     threads = []
-    regions_dedup = set(regions)
+    regions_dedup = dedup(regions)
     for cloud_region in regions_dedup:
         thread = threading.Thread(
             name=f"create-{cloud_region}",
@@ -103,6 +103,9 @@ def __create_vms(
     for thread in threads:
         thread.join()
         logging.info('create_vm in "%s" done', thread.name)
+
+    if not vm_region_and_address_infos:
+        raise ValueError("No results")
 
     ret = sort_addr_by_region(vm_region_and_address_infos, regions)
     return ret
@@ -148,6 +151,7 @@ def __do_tests(
 
         else:
             raise Exception(f"Implement {src_region}")
+
         non_str = [(k, v) for k, v in env.items() if type(v) != str]
         assert not non_str, non_str
 
@@ -261,7 +265,9 @@ def __setup_and_tests_and_teardown(run_id: str, regions: List[CloudRegion]):
     """regions taken pairwise"""
     # Because we launch VMs and runs tests multithreaded, if one launch fails or one tests fails, run_tests() will not thrown an Exception.
     # So, VMs will still be cleaned up
-    assert len(regions) % 2 == 0, f"Expect pairs {regions}"
+    assert (
+        len(regions) % 2 == 0
+    ), f"Expect even-length list to represent pairs: len was {len(regions)}: {regions}"
 
     vm_region_and_address_infos = __create_vms(regions, run_id)
     logging.info(vm_region_and_address_infos)
@@ -269,7 +275,7 @@ def __setup_and_tests_and_teardown(run_id: str, regions: List[CloudRegion]):
     __delete_vms(run_id, regions)
 
 
-def test_region_pairs(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
+def test_batch(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
     write_attempted_tests(region_pairs)
     logging.info("Will test %s", region_pairs)
     regions = list(itertools.chain(*region_pairs))
@@ -315,7 +321,7 @@ def __parse_region_pairs(
 
 def __batches_of_tests(
     batch_size: int,
-    num_batches: int,
+    max_batches: int,
     only_this_cloud: Cloud,
     preselected_region_pairs: List[Tuple[CloudRegion, CloudRegion]],
 ):
@@ -330,17 +336,31 @@ def __batches_of_tests(
 
     if only_this_cloud:
         region_pairs = [
-            r
-            for r in region_pairs
-            if r[0].cloud == only_this_cloud and r[1].cloud == only_this_cloud
+            p
+            for p in region_pairs
+            if p[0].cloud == only_this_cloud and p[1].cloud == only_this_cloud
         ]
+    # no_gov_or_cn
+    def gov_or_cn(p: Tuple):
+        return any(
+            (
+                p[i].cloud == Cloud.AWS
+                and ("-gov-" in p[i].region_id or p[i].region_id.startswith("cn-"))
+                for i in [0, 1]
+            )
+        )
 
+    with_gov_and_china = len(region_pairs)
+    region_pairs = [p for p in region_pairs if not gov_or_cn(p)]
+    logging.info(
+        "Ignoring %d gov or China AWS reigons", with_gov_and_china - len(region_pairs)
+    )
     batches = [
         region_pairs[i : i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
-    if num_batches > math.inf:
-        batches = batches[:num_batches]
+    if max_batches < math.inf:
+        batches = batches[:max_batches]
     tot_len = sum(len(g) for g in batches)
     logging.info(
         f"After limiting number of tests, where specified, for batch size/count and for specific cloud, running {tot_len} tests"
@@ -348,10 +368,7 @@ def __batches_of_tests(
     return batches
 
 
-def main():
-
-    logging.info("Started at %s", datetime.datetime.now().isoformat())
-
+def __command_line_args():
     parser = argparse.ArgumentParser(description="", allow_abbrev=True)
     parser.add_argument(
         "--region_pairs",
@@ -366,11 +383,10 @@ def main():
         "--batch_size",
         type=int,
         default=6,
-        help='Size of batch of tests to be run in parallels. Together with num_batches, this can limit number of tests")',
+        help='Size of batch of tests to be run in parallels. Together with max_batches, this can limit number of tests")',
     )
-
     parser.add_argument(
-        "--num_batches",
+        "--max_batches",
         type=int,
         default=math.inf,
         help='Max number of batches. Together with batch_size, this can limit number of tests. Default indicates "do all tests")',
@@ -379,19 +395,27 @@ def main():
         "--only_this_cloud",
         type=Cloud,
         default=None,
-        help='"GCP" or "AWS". Default (None) means "Do them all"',
+        help='"GCP" or "AWS" means ignore tests that use a different cloud. Default (None) means "Do them all"',
     )
-
     args = parser.parse_args()
-    region_pairs = __parse_region_pairs(args.region_pairs)
+    return args
 
+
+def main():
+
+    logging.info("Started at %s", datetime.datetime.now().isoformat())
+
+    args = __command_line_args()
     batches = __batches_of_tests(
-        args.batch_size, args.num_batches, args.only_this_cloud, region_pairs
+        args.batch_size,
+        args.max_batches,
+        args.only_this_cloud,
+        __parse_region_pairs(args.region_pairs),
     )
     run_id = random_id()
 
     for batch in batches:
-        test_region_pairs(batch, run_id)
+        test_batch(batch, run_id)
     graph_full_testing_history()
 
 

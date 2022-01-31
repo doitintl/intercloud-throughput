@@ -4,9 +4,6 @@ set -x
 set -e
 set -u
 
-[ -v $RUN_ID ]
-[ -v $REGION ]
-
 CLIENT_INSTANCE_IDS=$(aws ec2 describe-instances --region $REGION --query 'Reservations[].Instances[].InstanceId' --filters "Name=tag:run-id,Values=${RUN_ID}" --output text)
 
 if [[ -z $CLIENT_INSTANCE_IDS ]]; then

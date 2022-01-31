@@ -5,14 +5,6 @@ set -e
 set -u
 
 # Check that variables are set
-[ -v $RUN_ID ]
-[ -v $SERVER_PUBLIC_ADDRESS ]
-[ -v $CLIENT_NAME ]
-[ -v $CLIENT_ZONE ]
-[ -v $SERVER_CLOUD ]
-[ -v $CLIENT_CLOUD ]
-[ -v $SERVER_REGION ]
-[ -v $CLIENT_REGION ]
 
 IPERF_OUTPUT=""
 

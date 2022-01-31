@@ -18,7 +18,9 @@ logging.basicConfig(
 results_dir = os.environ.get("PERFTEST_RESULTSDIR", "./results")
 logging.info("Results dir is %s", results_dir)
 
-__results_csv = f"{results_dir}/results.csv"
+
+def __results_csv():
+    return  f"{results_dir}/results.csv"
 
 
 def load_results_csv() -> List[Dict]:
@@ -44,7 +46,13 @@ def load_results_csv() -> List[Dict]:
         return ret
 
     try:
-        with open(__results_csv) as f:
+
+        with open(__results_csv()) as f1:
+            contents=f1.read()
+            contents=contents.strip()
+            if not contents: return []# deal with empty file
+        with open(__results_csv()) as f:
+
             reader = csv.reader(f, skipinitialspace=True)
             header = next(reader)
             results = [dict(zip(header, row)) for row in reader]
@@ -74,19 +82,20 @@ def record_supernumerary_tests():
 
     dicts = load_results_csv()
     if not dicts:
-        raise ValueError
-    by_test_pairs = [
-        (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
-        for d in dicts
-    ]
-    hdr = ["count", "from_cloud", "from_region", "to_cloud", "to_region"]
-    record_test_count(
-        "Tests per Region Pair", hdr, by_test_pairs, "tests_per_regionpair"
-    )
-    intraregion_tests = list(
-        filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
-    )
-    record_test_count("Intraregion tests", hdr, intraregion_tests, "intraregion_tests")
+        logging.info("No previous results found")
+    else:
+        by_test_pairs = [
+            (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
+            for d in dicts
+        ]
+        hdr = ["count", "from_cloud", "from_region", "to_cloud", "to_region"]
+        record_test_count(
+            "Tests per Region Pair", hdr, by_test_pairs, "tests_per_regionpair"
+        )
+        intraregion_tests = list(
+            filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
+        )
+        record_test_count("Intraregion tests", hdr, intraregion_tests, "intraregion_tests")
 
 
 def combine_results_to_csv(results_dir_for_this_runid):
@@ -110,26 +119,26 @@ def combine_results_to_csv(results_dir_for_this_runid):
         f"Adding %d new results into %d existing results in %s",
         len(filenames),
         len(dicts),
-        __results_csv,
+        __results_csv(),
     )
+    if filenames:
+        keys = None
+        for fname in filenames:
+            with open(f"{results_dir_for_this_runid}/{fname}") as infile:
+                one_json = infile.read()
+                d = json_to_flattened_dict(one_json)
+                if not keys:
+                    keys = list(d.keys())
+                else:
+                    assert set(d.keys()) == set(
+                        keys
+                    ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
+                dicts.append(d)
 
-    keys = None
-    for fname in filenames:
-        with open(f"{results_dir_for_this_runid}/{fname}") as infile:
-            one_json = infile.read()
-            d = json_to_flattened_dict(one_json)
-            if not keys:
-                keys = list(d.keys())
-            else:
-                assert set(d.keys()) == set(
-                    keys
-                ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
-            dicts.append(d)
-
-    with open(__results_csv, "w") as f:
-        dict_writer = csv.DictWriter(f, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(dicts)
+        with open(__results_csv(), "w") as f:
+            dict_writer = csv.DictWriter(f, keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(dicts)
 
 
 if __name__ == "__main__":

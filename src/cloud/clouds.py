@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import inspect
 import itertools
@@ -12,7 +14,7 @@ import geopy.distance
 
 from util.utils import gcp_default_project, set_cwd
 
-key_for_aws_ssh_basename = "perftest"
+key_for_aws_ssh_basename = "intercloudperf"
 
 
 class Cloud(Enum):
@@ -143,13 +145,13 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
 
 
 def get_region(
-    cloud: [Cloud|str],
+    cloud: [Cloud | str],
     region_id: str,
     gcp_project: Optional[str] = None,
 ):
     regions = get_regions(gcp_project)
     if isinstance(cloud, str):
-        cloud=Cloud(cloud)
+        cloud = Cloud(cloud)
     assert isinstance(cloud, Cloud), cloud
     matches = [r for r in regions if r.cloud == cloud and r.region_id == region_id]
     if not matches:
@@ -174,6 +176,6 @@ def print_interregion_distances():
         logging.info("%s: %s km", pair, interregion_distance(pair[0], pair[1]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     set_cwd()
     print_interregion_distances()

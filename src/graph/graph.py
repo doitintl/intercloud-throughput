@@ -4,6 +4,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import pyplot
+from numpy.linalg import LinAlgError
 
 from cloud.clouds import interregion_distance, CloudRegion, Cloud, get_region
 from history.results import load_results_csv, results_dir
@@ -19,21 +20,32 @@ logging.basicConfig(
 def graph_full_testing_history():
     results = load_results_csv()
     if not results:
-        raise ValueError("No results in %s; maybe set another value for PERFTEST_RESULTSDIR env variable"%results_dir)
-
+        raise ValueError(
+            "No results in %s; maybe set another value for PERFTEST_RESULTSDIR env variable"
+            % results_dir
+        )
+    len_intra_and_interzone=len(results)
     # Eliminate intra-zone tests
-    results = list(
+    ___results = list(
         filter(
             lambda d: (
-                    (d["from_cloud"], d["from_region"]) != (d["to_cloud"], d["to_region"])
+                (d["from_cloud"], d["from_region"]) != (d["to_cloud"], d["to_region"])
             ),
             results,
         )
-    )  # Must listify to use the filter iterator repeatedly
+    )
+    if not results:
+        raise ValueError(
+            "No INTER-zone results"
+        )
+    if len(results)<len_intra_and_interzone:
+        logging.info("Removed %d intrazone results", len(results)<len_intra_and_interzone)
 
     for d in results:
-        d["distance"] = interregion_distance(get_region( (d["from_cloud"]), d["from_region"]),
-                                             get_region( (d["to_cloud"]), d["to_region"]))
+        d["distance"] = interregion_distance(
+            get_region((d["from_cloud"]), d["from_region"]),
+            get_region((d["to_cloud"]), d["to_region"]),
+        )
 
     results.sort(key=lambda d: d["distance"])
 
@@ -54,14 +66,24 @@ def graph_full_testing_history():
     plt.xlabel("distance")
     # naming the y axis
     plt.ylabel("..")
-    plt.plot(dist, avg_rtt, color='r',label="avgrtt")
-    plt.plot(dist, bitrate, color='blue', label="bitrate (10 MBps)")
+    plt.plot(dist, avg_rtt, color="r", label="avgrtt")
+    plt.plot(dist, bitrate, color="blue", label="bitrate (10 MBps)")
 
     dist_np = np.array(dist)
     bitrate_np = np.array(bitrate)
+    try:
+        m_bitrate, b_bitrate = np.polyfit(dist_np, bitrate_np, 1)
+    except LinAlgError as lae:
+        logging.warning("%s: %s and %s",lae, dist_np[:10], bitrate_np[:10])
+        m_bitrate,b_bitrate=0,0
 
-    m_bitrate,b_bitrate= np.polyfit(dist_np, bitrate_np, 1)
-    plt.plot(dist_np, m_bitrate * dist_np + b_bitrate, color='cyan', linestyle='dashed' , label="bitrate linear fit (10 MBps)" )
+    plt.plot(
+        dist_np,
+        m_bitrate * dist_np + b_bitrate,
+        color="cyan",
+        linestyle="dashed",
+        label="bitrate linear fit (10 MBps)",
+    )
 
     plt.legend()
 

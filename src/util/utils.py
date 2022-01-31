@@ -47,3 +47,9 @@ def gcp_default_project():
             GCP_DFLT = GCP_DFLT[:-1]
 
     return GCP_DFLT
+
+
+def dedup(seq):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
