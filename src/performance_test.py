@@ -319,7 +319,7 @@ def __parse_region_pairs(
 
 
 __SUPPORTED_AWS_REGIONS_CACHE = {}
-__UNSUP_AWS_REGIONS_CACHE_FILE = "reference_data/unsupported_aws_regions.json"
+__AWS_REGIONS_SUPPORT_CACHE_FILE = "reference_data/supported_aws_regions.json"
 
 
 def __supported_aws_regions_cache() :
@@ -328,7 +328,7 @@ def __supported_aws_regions_cache() :
         return __SUPPORTED_AWS_REGIONS_CACHE
 
     try:
-        with open(__UNSUP_AWS_REGIONS_CACHE_FILE) as f:
+        with open(__AWS_REGIONS_SUPPORT_CACHE_FILE) as f:
          __SUPPORTED_AWS_REGIONS_CACHE = json.load(f)
          logging.info("Loaded %s as unsupported AWS Regions", __SUPPORTED_AWS_REGIONS_CACHE)
 
@@ -342,7 +342,8 @@ def __supported_aws_regions_cache() :
 def __add_to_supported_aws_regions_cache(r: str, is_supported:bool):
     global __SUPPORTED_AWS_REGIONS_CACHE
     __SUPPORTED_AWS_REGIONS_CACHE[r]=is_supported
-    with open(__UNSUP_AWS_REGIONS_CACHE_FILE, "w") as f:
+    __SUPPORTED_AWS_REGIONS_CACHE=dict(sorted(__SUPPORTED_AWS_REGIONS_CACHE.items(), key=lambda i: (i[1], i[0])))
+    with open(__AWS_REGIONS_SUPPORT_CACHE_FILE, "w") as f:
         logging.info("Adding %s, AWS supported region: %s", r, is_supported)
         json.dump( __SUPPORTED_AWS_REGIONS_CACHE, f, indent=2)
 
@@ -351,9 +352,10 @@ def __add_to_supported_aws_regions_cache(r: str, is_supported:bool):
 def __is_unsupported_aws_region(r: CloudRegion):
     if r.cloud != Cloud.AWS:
         return False
-    from_cache =__supported_aws_regions_cache().get(r.region_id,None)
-    if from_cache is not None:
-        return from_cache
+
+    cached_value =__supported_aws_regions_cache().get(r.region_id,None)
+    if cached_value is not None:
+        return not cached_value
 
     try:
         run_subprocess(
@@ -361,14 +363,12 @@ def __is_unsupported_aws_region(r: CloudRegion):
             env={"PATH": os.environ.get("PATH"), "REGION": r.region_id},
         )
     except ChildProcessError as cpe:
-        logging.warning("Discovered %s is an unsupported AWS region", r.region_id)
-        __add_to_supported_aws_regions_cache(r.region_id, False)
-        return True
+        is_supported = False
     else:
-        logging.info("Discovered %s is an  supported AWS region", r.region_id)
-        __add_to_supported_aws_regions_cache(r.region_id, True)
-        return False
-
+        is_supported =  True
+    logging.info("Discovered %s is a %s AWS region", r.region_id , "supported" if is_supported else "unsupported")
+    __add_to_supported_aws_regions_cache(r.region_id, is_supported)
+    return not is_supported
 
 def __batches_of_tests(
     batch_size: int,
@@ -393,13 +393,12 @@ def __batches_of_tests(
         ]
 
     def has_unsupported_aws_region(p):
-        ret = any(__is_unsupported_aws_region(p[i]) for i in [0, 1])
-        return ret
+        return any(__is_unsupported_aws_region(p[i]) for i in [0, 1])
 
     before_filter_unsup = len(region_pairs)
     region_pairs = [p for p in region_pairs if not has_unsupported_aws_region(p)]
     if len(region_pairs) < before_filter_unsup:
-        logging.info("Dropped %d pairs with unsupported AWS region")
+        logging.info("Dropped %d pairs with an unsupported AWS region", before_filter_unsup-len(region_pairs)    )
 
     def gov_or_cn(p: Tuple):
         return any(
