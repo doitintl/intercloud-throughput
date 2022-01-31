@@ -24,7 +24,7 @@ def graph_full_testing_history():
             "No results in %s; maybe set another value for PERFTEST_RESULTSDIR env variable"
             % results_dir
         )
-    len_intra_and_interzone=len(results)
+    len_intra_and_interzone = len(results)
     # Eliminate intra-zone tests
     ___results = list(
         filter(
@@ -35,11 +35,11 @@ def graph_full_testing_history():
         )
     )
     if not results:
-        raise ValueError(
-            "No INTER-zone results"
+        raise ValueError("No INTER-zone results")
+    if len(results) < len_intra_and_interzone:
+        logging.info(
+            "Removed %d intrazone results", len(results) < len_intra_and_interzone
         )
-    if len(results)<len_intra_and_interzone:
-        logging.info("Removed %d intrazone results", len(results)<len_intra_and_interzone)
 
     for d in results:
         d["distance"] = interregion_distance(
@@ -74,8 +74,8 @@ def graph_full_testing_history():
     try:
         m_bitrate, b_bitrate = np.polyfit(dist_np, bitrate_np, 1)
     except LinAlgError as lae:
-        logging.warning("%s: %s and %s",lae, dist_np[:10], bitrate_np[:10])
-        m_bitrate,b_bitrate=0,0
+        logging.warning("%s: %s and %s", lae, dist_np[:10], bitrate_np[:10])
+        m_bitrate, b_bitrate = 0, 0
 
     plt.plot(
         dist_np,

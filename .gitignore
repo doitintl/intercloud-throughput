@@ -3,7 +3,9 @@
 .DS_Store
 
 TMP*
+tmp*
 TEMP*
+temp*
 
 
 __pycache__/

@@ -20,7 +20,7 @@ logging.info("Results dir is %s", results_dir)
 
 
 def __results_csv():
-    return  f"{results_dir}/results.csv"
+    return f"{results_dir}/results.csv"
 
 
 def load_results_csv() -> List[Dict]:
@@ -48,9 +48,10 @@ def load_results_csv() -> List[Dict]:
     try:
 
         with open(__results_csv()) as f1:
-            contents=f1.read()
-            contents=contents.strip()
-            if not contents: return []# deal with empty file
+            contents = f1.read()
+            contents = contents.strip()
+            if not contents:
+                return []  # deal with empty file
         with open(__results_csv()) as f:
 
             reader = csv.reader(f, skipinitialspace=True)
@@ -95,7 +96,9 @@ def record_supernumerary_tests():
         intraregion_tests = list(
             filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
         )
-        record_test_count("Intraregion tests", hdr, intraregion_tests, "intraregion_tests")
+        record_test_count(
+            "Intraregion tests", hdr, intraregion_tests, "intraregion_tests"
+        )
 
 
 def combine_results_to_csv(results_dir_for_this_runid):

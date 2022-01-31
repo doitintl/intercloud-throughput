@@ -1,10 +1,15 @@
 # Intercloud networking test
 
-# Purpose
+## Purpose
 
 * This runs a test of throughput and latency within and between regions in the same or different clouds.
-* Other cloud performance test benchmarks are available, but most focus on latency, not throughput, and most
+## What makes it different
+Other cloud performance test benchmarks are available, but most focus on latency, not throughput, and most
 are in a single cloud.
+
+## Latency vs Throughput
+
+
 
 ## Prerequisites
 * Python 3.9

@@ -1,6 +1,7 @@
 import argparse
 
 import datetime
+import functools
 import itertools
 import json
 import logging
@@ -212,14 +213,10 @@ def __do_tests(
     shutil.rmtree(results_dir_for_this_runid)
 
 
-def __regionpairs() -> List[Tuple[CloudRegion, CloudRegion]]:
-    test_results_: List[Dict]
-
-    all_regions: List[CloudRegion]
+def __crossproduct_no_intraregion() -> List[Tuple[CloudRegion, CloudRegion]]:
     all_regions = get_regions()
     all_pairs_with_intraregion = itertools.product(all_regions, all_regions)
     all_pairs_no_intraregion = [p for p in all_pairs_with_intraregion if p[0] != p[1]]
-
     return all_pairs_no_intraregion
 
 
@@ -314,9 +311,63 @@ def __parse_region_pairs(
         return get_region(cloud_s, region_s)
 
     pairs_s = region_pairs.split(";")
-    pairs_str_2item_list = [p.split(",") for p in pairs_s]
-    pairs_regions = [(str_to_reg(p[0]), str_to_reg(p[1])) for p in pairs_str_2item_list]
+    pairs_str_twoitem_list = [p.split(",") for p in pairs_s]
+    pairs_regions = [
+        (str_to_reg(p[0]), str_to_reg(p[1])) for p in pairs_str_twoitem_list
+    ]
     return pairs_regions
+
+
+__SUPPORTED_AWS_REGIONS_CACHE = {}
+__UNSUP_AWS_REGIONS_CACHE_FILE = "reference_data/unsupported_aws_regions.json"
+
+
+def __supported_aws_regions_cache() :
+    global __SUPPORTED_AWS_REGIONS_CACHE
+    if __SUPPORTED_AWS_REGIONS_CACHE:  # We will alwaysload empty file until we have some values, then we'll have a cache
+        return __SUPPORTED_AWS_REGIONS_CACHE
+
+    try:
+        with open(__UNSUP_AWS_REGIONS_CACHE_FILE) as f:
+         __SUPPORTED_AWS_REGIONS_CACHE = json.load(f)
+         logging.info("Loaded %s as unsupported AWS Regions", __SUPPORTED_AWS_REGIONS_CACHE)
+
+    except FileNotFoundError:
+        __SUPPORTED_AWS_REGIONS_CACHE={}
+
+    return __SUPPORTED_AWS_REGIONS_CACHE
+
+
+
+def __add_to_supported_aws_regions_cache(r: str, is_supported:bool):
+    global __SUPPORTED_AWS_REGIONS_CACHE
+    __SUPPORTED_AWS_REGIONS_CACHE[r]=is_supported
+    with open(__UNSUP_AWS_REGIONS_CACHE_FILE, "w") as f:
+        logging.info("Adding %s, AWS supported region: %s", r, is_supported)
+        json.dump( __SUPPORTED_AWS_REGIONS_CACHE, f, indent=2)
+
+
+
+def __is_unsupported_aws_region(r: CloudRegion):
+    if r.cloud != Cloud.AWS:
+        return False
+    from_cache =__supported_aws_regions_cache().get(r.region_id,None)
+    if from_cache is not None:
+        return from_cache
+
+    try:
+        run_subprocess(
+            "./scripts/aws-test-acn.sh",
+            env={"PATH": os.environ.get("PATH"), "REGION": r.region_id},
+        )
+    except ChildProcessError as cpe:
+        logging.warning("Discovered %s is an unsupported AWS region", r.region_id)
+        __add_to_supported_aws_regions_cache(r.region_id, False)
+        return True
+    else:
+        logging.info("Discovered %s is an  supported AWS region", r.region_id)
+        __add_to_supported_aws_regions_cache(r.region_id, True)
+        return False
 
 
 def __batches_of_tests(
@@ -328,7 +379,7 @@ def __batches_of_tests(
     if preselected_region_pairs:
         region_pairs = preselected_region_pairs
     else:
-        region_pairs = __regionpairs()
+        region_pairs = __crossproduct_no_intraregion()
         region_pairs = without_already_attempted(region_pairs)
         region_pairs = sorted(
             region_pairs, key=most_frequent_region_first_func(region_pairs)
@@ -340,7 +391,16 @@ def __batches_of_tests(
             for p in region_pairs
             if p[0].cloud == only_this_cloud and p[1].cloud == only_this_cloud
         ]
-    # no_gov_or_cn
+
+    def has_unsupported_aws_region(p):
+        ret = any(__is_unsupported_aws_region(p[i]) for i in [0, 1])
+        return ret
+
+    before_filter_unsup = len(region_pairs)
+    region_pairs = [p for p in region_pairs if not has_unsupported_aws_region(p)]
+    if len(region_pairs) < before_filter_unsup:
+        logging.info("Dropped %d pairs with unsupported AWS region")
+
     def gov_or_cn(p: Tuple):
         return any(
             (
@@ -412,10 +472,12 @@ def main():
         args.only_this_cloud,
         __parse_region_pairs(args.region_pairs),
     )
+
     run_id = random_id()
 
     for batch in batches:
         test_batch(batch, run_id)
+
     graph_full_testing_history()
 
 
