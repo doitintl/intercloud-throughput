@@ -14,7 +14,7 @@ import geopy.distance
 
 from util.utils import gcp_default_project, set_cwd
 
-key_for_aws_ssh_basename = "intercloudperf"
+basename_key_for_aws_ssh = "cloud-perf"
 
 
 class Cloud(Enum):
@@ -69,7 +69,7 @@ class CloudRegion:
     def env(self) -> Dict[str, str]:
         envs = {
             Cloud.GCP: {"PROJECT_ID": self.gcp_project},
-            Cloud.AWS: {"BASE_KEYNAME": key_for_aws_ssh_basename},
+            Cloud.AWS: {"BASE_KEYNAME": basename_key_for_aws_ssh},
         }
         return envs[self.cloud]
 

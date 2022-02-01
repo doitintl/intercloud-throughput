@@ -20,7 +20,7 @@ def __supported_auth_aws_regions_cache():
         with open(__AWS_REGIONS_SUPPORT_CACHE_FILE) as f:
             __SUPPORTED_AUTH_AWS_REGIONS_CACHE = json.load(f)
             logging.info(
-                "Loaded %s as unsupported AWS Regions",
+                "Loaded supported AWS Regions as %s",
                 __SUPPORTED_AUTH_AWS_REGIONS_CACHE,
             )
 
@@ -38,6 +38,7 @@ def __add_to_supported_aws_regions_cache(r: str, is_supported: bool):
     )
     with open(__AWS_REGIONS_SUPPORT_CACHE_FILE, "w") as f:
         logging.info("Adding %s, AWS supported region: %s", r, is_supported)
+
         json.dump(__SUPPORTED_AUTH_AWS_REGIONS_CACHE, f, indent=2)
 
 

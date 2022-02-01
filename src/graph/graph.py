@@ -35,7 +35,8 @@ def graph_full_testing_history():
         )
     )
     if not results:
-        raise ValueError("No INTER-zone results")
+        raise ValueError("No inter-zone results available")
+
     if len(results) < len_intra_and_interzone:
         logging.info(
             "Removed %d intrazone results", len(results) < len_intra_and_interzone
@@ -65,25 +66,12 @@ def graph_full_testing_history():
     # naming the x axis
     plt.xlabel("distance")
     # naming the y axis
-    plt.ylabel("..")
-    plt.plot(dist, avg_rtt, color="r", label="avgrtt")
-    plt.plot(dist, bitrate, color="blue", label="bitrate (10 MBps)")
+    plt.ylabel("seconds    |   10 Mbps")
+    plt.plot(dist, avg_rtt, color="red", label="avg rtt")
+    plt.plot(dist, bitrate, color="blue", label="bitrate")
+    __plot_linear_fit_bitrate("avg rtt", dist, avg_rtt, "#FF1493")
+    __plot_linear_fit_bitrate("bitrate", dist, bitrate, "cyan")
 
-    dist_np = np.array(dist)
-    bitrate_np = np.array(bitrate)
-    try:
-        m_bitrate, b_bitrate = np.polyfit(dist_np, bitrate_np, 1)
-    except LinAlgError as lae:
-        logging.warning("%s: %s and %s", lae, dist_np[:10], bitrate_np[:10])
-        m_bitrate, b_bitrate = 0, 0
-
-    plt.plot(
-        dist_np,
-        m_bitrate * dist_np + b_bitrate,
-        color="cyan",
-        linestyle="dashed",
-        label="bitrate linear fit (10 MBps)",
-    )
 
     plt.legend()
 
@@ -95,6 +83,27 @@ def graph_full_testing_history():
 
     plt.show()
     logging.info("Generated chart %s", chart_file)
+
+LinAlgError_counter=0
+def __plot_linear_fit_bitrate(lbl, dist, y, color):
+    dist_np = np.array(dist)
+    y_np = np.array(y)
+    try:
+
+        m_bitrate, b_bitrate = np.polyfit(dist_np, y_np, 1)
+        plt.plot(
+            dist_np,
+            m_bitrate * dist_np + b_bitrate,
+            color=color,
+            linestyle="dashed",
+            label=lbl,
+        )
+    except LinAlgError as lae:
+        global LinAlgError_counter
+        LinAlgError_counter+=1
+        logging.warning("%s: %s and %s", lae, dist_np[:10], y_np[:10])
+        plt.text(2000, 3500-(LinAlgError_counter*500), f'No linear fit to {lbl} available', fontsize=10, style='italic',
+                 bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 3})
 
 
 if __name__ == "__main__":

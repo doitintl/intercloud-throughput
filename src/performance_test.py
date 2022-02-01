@@ -15,7 +15,7 @@ from cloud.clouds import (
     Cloud,
     CloudRegion,
     get_regions,
-    key_for_aws_ssh_basename,
+    basename_key_for_aws_ssh,
     get_region,
 )
 from graph.graph import graph_full_testing_history
@@ -132,7 +132,7 @@ def __do_tests(
         if src_region.cloud == Cloud.AWS:
             env |= {
                 "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
-                "BASE_KEYNAME": key_for_aws_ssh_basename,
+                "BASE_KEYNAME": basename_key_for_aws_ssh,
             }
         elif src_region.cloud == Cloud.GCP:
             try:

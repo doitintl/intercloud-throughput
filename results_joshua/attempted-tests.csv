@@ -221,3 +221,7 @@ GCP,us-west3,GCP,us-west4
 GCP,us-west3,GCP,us-west4
 GCP,us-west1,GCP,us-west2
 GCP,us-central1,GCP,us-west2
+AWS,ap-northeast-1,AWS,ap-northeast-2
+AWS,ap-northeast-1,AWS,ap-northeast-3
+AWS,ap-northeast-1,AWS,ap-northeast-1
+AWS,ap-northeast-1,AWS,ap-northeast-1
