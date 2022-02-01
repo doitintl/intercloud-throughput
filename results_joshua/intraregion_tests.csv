@@ -1,0 +1,7 @@
+#Intraregion tests
+count,from_cloud,from_region,to_cloud,to_region
+2,GCP,us-east1,GCP,us-east1
+2,AWS,us-west-2,AWS,us-west-2
+2,GCP,us-east4,GCP,us-east4
+2,GCP,us-central1,GCP,us-central1
+1,AWS,ap-northeast-1,AWS,ap-northeast-1

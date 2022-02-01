@@ -1,4 +1,4 @@
-datetime,run_id,from_cloud,from_region,to_cloud,to_region,bitrate_Bps,avgrtt
+timestamp,run_id,from_cloud,from_region,to_cloud,to_region,bitrate_Bps,avgrtt
 2022-01-13T14:38:14Z,dgqg,GCP,us-east1,GCP,us-east1,1205862400.0,0.756
 2022-01-13T18:45:31Z,bmwj,AWS,us-west-2,AWS,us-west-2,46298955776.0,0.021
 2022-01-13T18:45:36Z,bmwj,GCP,us-east4,GCP,us-east4,1154744320.0,0.468
@@ -200,4 +200,8 @@ datetime,run_id,from_cloud,from_region,to_cloud,to_region,bitrate_Bps,avgrtt
 2022-01-28T11:25:00Z,xijace,GCP,us-west3,GCP,us-west4,1178730496.0,21.781
 2022-01-28T11:28:19Z,xanole,GCP,us-west1,GCP,us-west2,1115160576.0,26.626
 2022-01-28T11:34:20Z,pedive,GCP,us-central1,GCP,us-west2,600440832.0,48.771
-2022-02-01T09:52:27Z,ziyeho,AWS,ap-northeast-1,AWS,ap-northeast-1,47245950976,0.026
+2022-02-01T09:52:27Z,ziyeho,AWS,ap-northeast-1,AWS,ap-northeast-1,47245950976.0,0.026
+2022-02-01T11:36:43Z,nebuna,AWS,ap-northeast-1,AWS,ap-northeast-3,339476480.0,9.962
+2022-02-01T11:36:43Z,nebuna,AWS,ap-northeast-1,AWS,ap-northeast-2,57147392.0,31.787
+2022-02-01T13:46:41Z,nodaca,AWS,ap-south-1,AWS,ap-southeast-1,80871424,54.640
+2022-02-01T13:46:41Z,nodaca,AWS,ap-south-1,AWS,ap-southeast-2,32112640,145.846

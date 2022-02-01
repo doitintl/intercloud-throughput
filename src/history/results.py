@@ -1,12 +1,12 @@
 import collections
 import csv
-
 import json
 import logging
 import os
-
+import shutil
 from typing import List, Dict, Tuple
 
+from cloud.clouds import CloudRegion
 from util.utils import set_cwd
 
 logging.basicConfig(
@@ -19,8 +19,31 @@ results_dir = os.environ.get("PERFTEST_RESULTSDIR", "./results")
 logging.info("Results dir is %s", results_dir)
 
 
+def __results_dir_for_run(run_id):
+    return f"./result-files-one-run/results-{run_id}"
+
+
 def __results_csv():
     return f"{results_dir}/results.csv"
+
+
+def write_results_for_run(
+        result_j, run_id: str, src_region_: CloudRegion, dst_region_: CloudRegion
+):
+    try:
+        os.mkdir(__results_dir_for_run(run_id))
+    except FileExistsError:
+        pass
+    results_for_one_run_file = (
+        f"{__results_dir_for_run(run_id)}/results-{src_region_}-to-{dst_region_}.json"
+    )
+    # We write separate files for each test to avoid race conditions, since tests happen in parallel.
+    with open(
+            results_for_one_run_file,
+            "w",
+    ) as f:
+        json.dump(result_j, f)
+        logging.info("Wrote %s", results_for_one_run_file)
 
 
 def load_results_csv() -> List[Dict]:
@@ -65,7 +88,7 @@ def load_results_csv() -> List[Dict]:
 
 def record_supernumerary_tests():
     def record_test_count(
-        title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id: str
+            title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id_: str
     ):
         tests_per_regionpair = collections.Counter(region_pairs)
         regionpair_items = sorted(
@@ -75,8 +98,8 @@ def record_supernumerary_tests():
             f"{v},{k[0]},{k[1]},{k[2]},{k[3]}" for k, v in regionpair_items
         ]
         s = "\n".join(regionpair_strings)
-        logging.info("%s %s", id, s)
-        with open(results_dir + "/" + f"{id}.csv", "w") as f:
+        logging.info("%s %s", id_, s)
+        with open(results_dir + "/" + f"{id_}.csv", "w") as f:
             f.write("#" + title + "\n")
             f.write(",".join(hdrs) + "\n")
             f.write(s)
@@ -101,7 +124,7 @@ def record_supernumerary_tests():
         )
 
 
-def combine_results_to_csv(results_dir_for_this_runid):
+def combine_results_to_csv(run_id: str):
     def json_to_flattened_dict(json_s: str) -> Dict:
         ret = {}
         j = json.loads(json_s)
@@ -114,34 +137,40 @@ def combine_results_to_csv(results_dir_for_this_runid):
                 ret[k] = v
         return ret
 
-    filenames = os.listdir(results_dir_for_this_runid)
-    dicts = load_results_csv()
-    record_supernumerary_tests()
+    if not os.path.exists(__results_dir_for_run(run_id)):
+        logging.warning("No results at %s", __results_dir_for_run(run_id))
+        return
+    else:
+        filenames = os.listdir(__results_dir_for_run(run_id))
+        dicts = load_results_csv()
 
-    logging.info(
-        f"Adding %d new results into %d existing results in %s",
-        len(filenames),
-        len(dicts),
-        __results_csv(),
-    )
-    if filenames:
-        keys = None
-        for fname in filenames:
-            with open(f"{results_dir_for_this_runid}/{fname}") as infile:
-                one_json = infile.read()
-                d = json_to_flattened_dict(one_json)
-                if not keys:
-                    keys = list(d.keys())
-                else:
-                    assert set(d.keys()) == set(
-                        keys
-                    ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
-                dicts.append(d)
+        record_supernumerary_tests()
 
-        with open(__results_csv(), "w") as f:
-            dict_writer = csv.DictWriter(f, keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(dicts)
+        logging.info(
+            f"Adding %d new results into %d existing results in %s",
+            len(filenames),
+            len(dicts),
+            __results_csv(),
+        )
+        if filenames:
+            keys = None
+            for fname in filenames:
+                with open(f"{__results_dir_for_run(run_id)}/{fname}") as infile:
+                    one_json = infile.read()
+                    d = json_to_flattened_dict(one_json)
+                    if not keys:
+                        keys = list(d.keys())
+                    else:
+                        assert set(d.keys()) == set(
+                            keys
+                        ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
+                    dicts.append(d)
+
+            with open(__results_csv(), "w") as f:
+                dict_writer = csv.DictWriter(f, keys)
+                dict_writer.writeheader()
+                dict_writer.writerows(dicts)
+    shutil.rmtree(__results_dir_for_run(run_id))
 
 
 if __name__ == "__main__":

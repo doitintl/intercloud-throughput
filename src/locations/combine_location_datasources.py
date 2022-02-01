@@ -1,18 +1,13 @@
 import csv
 import itertools
-import json
 import os
 from statistics import median, mean, stdev, variance
 from typing import List, Dict
 
-import yaml
-
-from locations import geoloc, sunshower, yugabyte
 from util.utils import set_cwd
 
 
 def __combine():
-
     groups = data_by_region()
     geoloc = {}
     for region_name, data in groups.items():

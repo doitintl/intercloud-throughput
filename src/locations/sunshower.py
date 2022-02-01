@@ -1,10 +1,9 @@
 import csv
 import json
 
-import yaml
-from util.utils import set_cwd
-
 import requests as requests
+
+from util.utils import set_cwd
 
 
 def preprocess():

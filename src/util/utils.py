@@ -9,13 +9,12 @@ GCP_DFLT = None
 
 
 def set_cwd():
-
     previous_cwd = os.getcwd()
 
     parent = previous_cwd
     lst = os.listdir(parent)
     while parent != "/" and not all(
-        map(lambda s: s in lst, ["scripts", "startup-scripts", "src"])
+            map(lambda s: s in lst, ["scripts", "startup-scripts", "src"])
     ):
         parent = os.path.abspath(parent + "/" + "..")
         os.chdir(parent)

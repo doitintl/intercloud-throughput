@@ -1,0 +1,2 @@
+from_cloud,from_region,to_cloud,to_region
+GCP,us-east1,GCP,us-east1

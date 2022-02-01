@@ -1,7 +1,6 @@
 import csv
 import json
 
-import yaml
 from util.utils import set_cwd
 
 
@@ -10,18 +9,17 @@ def in_already(row, rows):
 
 
 def preprocess():
-
-    with open("./reference_data/raw_data/aws-regions-geoloc.json") as f:
+    with open("./reference_data/raw_data/aws-regions-geoloc.json") as f1:
         rows = []
-        json_s = f.read()
+        json_s = f1.read()
 
         keys = None
         data = json.loads(json_s)
         regions = data["regions"]
         for region in regions:
             az_ = region["az"][
-                :-1
-            ]  # all AZs of a given region in this list have the same lat/long
+                  :-1
+                  ]  # all AZs of a given region in this list have the same lat/long
             row = {
                 "source": "geoloc",
                 "cloud": "AWS",
@@ -35,8 +33,8 @@ def preprocess():
                 rows.append(row)
 
         rows.sort(key=lambda r: r["region"])
-        with open("./reference_data/data_sources/aws-geoloc.csv", "w") as f:
-            dict_writer = csv.DictWriter(f, keys)
+        with open("./reference_data/data_sources/aws-geoloc.csv", "w") as f2:
+            dict_writer = csv.DictWriter(f2, keys)
             dict_writer.writeheader()
             dict_writer.writerows(rows)
 

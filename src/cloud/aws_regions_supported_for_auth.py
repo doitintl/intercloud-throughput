@@ -9,16 +9,22 @@ __SUPPORTED_AUTH_AWS_REGIONS_CACHE = {}
 __AWS_REGIONS_SUPPORT_CACHE_FILE = "reference_data/supported_aws_auth_regions.json"
 
 
+# See https://stackoverflow.com/questions/70938322/
+
+
 def __supported_auth_aws_regions_cache():
     global __SUPPORTED_AUTH_AWS_REGIONS_CACHE
     if (
-        __SUPPORTED_AUTH_AWS_REGIONS_CACHE
+            __SUPPORTED_AUTH_AWS_REGIONS_CACHE
     ):  # We will alwaysload empty file until we have some values, then we'll have a cache
         return __SUPPORTED_AUTH_AWS_REGIONS_CACHE
 
     try:
         with open(__AWS_REGIONS_SUPPORT_CACHE_FILE) as f:
-            __SUPPORTED_AUTH_AWS_REGIONS_CACHE = json.load(f)
+            d = json.load(f)
+            # Remove comments
+            d = {k: v for k, v in d.items() if not k.startswith("__")}
+            __SUPPORTED_AUTH_AWS_REGIONS_CACHE = d
             logging.info(
                 "Loaded supported AWS Regions as %s",
                 __SUPPORTED_AUTH_AWS_REGIONS_CACHE,
@@ -38,8 +44,10 @@ def __add_to_supported_aws_regions_cache(r: str, is_supported: bool):
     )
     with open(__AWS_REGIONS_SUPPORT_CACHE_FILE, "w") as f:
         logging.info("Adding %s, AWS supported region: %s", r, is_supported)
-
-        json.dump(__SUPPORTED_AUTH_AWS_REGIONS_CACHE, f, indent=2)
+        d = __SUPPORTED_AUTH_AWS_REGIONS_CACHE | {
+            "__comment": "See https://stackoverflow.com/questions/70938322/"
+        }
+        json.dump(d, f, indent=2)
 
 
 def is_unsupported_auth_aws_region(r: CloudRegion):
@@ -66,4 +74,3 @@ def is_unsupported_auth_aws_region(r: CloudRegion):
     )
     __add_to_supported_aws_regions_cache(r.region_id, is_supported)
     return not is_supported
-

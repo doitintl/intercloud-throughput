@@ -2,9 +2,11 @@
 # Copyright (c) YugaByte, Inc.
 # Apache 2.0 License https://github.com/yugabyte/yugabyte-db/blob/master/licenses/APACHE-LICENSE-2.0.txt
 import csv
-import yaml
-from util.utils import set_cwd
+
 import requests as requests
+import yaml
+
+from util.utils import set_cwd
 
 
 def preprocess():

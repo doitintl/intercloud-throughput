@@ -28,17 +28,17 @@ class Cloud(Enum):
 @total_ordering
 class CloudRegion:
     def __init__(
-        self,
-        cloud: Cloud,
-        region_id: str,
-        lat: float = None,
-        long: float = None,
-        gcp_project: Optional[str] = None,
+            self,
+            cloud: Cloud,
+            region_id: str,
+            lat: float = None,
+            long: float = None,
+            gcp_project: Optional[str] = None,
     ):
         curframe = inspect.currentframe()
         calframe = inspect.getouterframes(curframe, 2)
         assert (
-            calframe[1][3] == "get_regions"
+                calframe[1][3] == "get_regions"
         ), "Call this only in building the regions list"
         assert isinstance(cloud, Cloud), type(cloud)
         assert re.match(r"[a-z][a-z-]+\d$", region_id)
@@ -82,9 +82,9 @@ class CloudRegion:
 
     def __eq__(self, other):
         return (
-            self.region_id == other.region_id
-            and self.cloud == other.cloud
-            and self.gcp_project == other.gcp_project
+                self.region_id == other.region_id
+                and self.cloud == other.cloud
+                and self.gcp_project == other.gcp_project
         )
 
 
@@ -106,7 +106,7 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
             ret = gcp_project or gcp_default_project()
             nonlocal only_gcp_project
             assert (
-                not only_gcp_project or ret == only_gcp_project
+                    not only_gcp_project or ret == only_gcp_project
             ), f"{ret}!={only_gcp_project}"
             only_gcp_project = only_gcp_project or ret  # could omit only_gcp_project or
             return ret
@@ -145,9 +145,9 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
 
 
 def get_region(
-    cloud: [Cloud | str],
-    region_id: str,
-    gcp_project: Optional[str] = None,
+        cloud: [Cloud | str],
+        region_id: str,
+        gcp_project: Optional[str] = None,
 ):
     regions = get_regions(gcp_project)
     if isinstance(cloud, str):
@@ -164,7 +164,6 @@ def get_region(
 
 
 def interregion_distance(r1: CloudRegion, r2: CloudRegion):
-
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
     assert (r1 == r2) == (ret == 0), "Expect 0 km if and only if same region"
     return ret

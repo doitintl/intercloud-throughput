@@ -5,7 +5,6 @@ import json
 import logging
 import math
 import os
-import shutil
 import threading
 from collections import Counter
 from typing import List, Dict, Tuple, Callable, Optional
@@ -19,8 +18,12 @@ from cloud.clouds import (
     get_region,
 )
 from graph.graph import graph_full_testing_history
-from history.attempted import without_already_attempted, write_attempted_tests
-from history.results import combine_results_to_csv
+from history.attempted import (
+    without_already_succeeded,
+    write_attempted_tests,
+    write_failed_test,
+)
+from history.results import combine_results_to_csv, write_results_for_run
 from util.subprocesses import run_subprocess
 from util.utils import set_cwd, random_id, dedup
 
@@ -33,25 +36,26 @@ logging.basicConfig(
 
 def __env_for_singlecloud_subprocess(run_id, cloud_region):
     return {
-        "PATH": os.environ["PATH"],
-        "REGION": cloud_region.region_id,
-        "RUN_ID": run_id,
-    } | cloud_region.env()
+               "PATH": os.environ["PATH"],
+               "REGION": cloud_region.region_id,
+               "RUN_ID": run_id,
+           } | cloud_region.env()
 
 
 def __create_vms(
-    regions: List[CloudRegion], run_id: str
+        regions: List[CloudRegion], run_id: str
 ) -> List[Tuple[CloudRegion, Dict]]:
     # TODO Improve thread use with ThreadPoolExecutor and futures
     def create_vm(
-        run_id_: str,
-        cloud_region_: CloudRegion,
-        vm_region_and_address_infos_inout: List[Tuple[CloudRegion, Dict]],
+            run_id_: str,
+            cloud_region_: CloudRegion,
+            vm_region_and_address_infos_inout: List[Tuple[CloudRegion, Dict]],
     ):
         logging.info("Will launch a VM in %s", cloud_region_)
         env = __env_for_singlecloud_subprocess(run_id_, cloud_region_)
 
         process_stdout = run_subprocess(cloud_region_.script(), env)
+
         vm_addresses = {}
         vm_address_info = process_stdout
         if vm_address_info[-1] == "\n":
@@ -65,8 +69,8 @@ def __create_vms(
         vm_region_and_address_infos_inout.append((cloud_region_, vm_addresses))
 
     def sort_addr_by_region(
-        vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]],
-        regions_: List[CloudRegion],
+            vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]],
+            regions_: List[CloudRegion],
     ):
         ret = []
         for region in regions_:
@@ -106,69 +110,58 @@ def __create_vms(
     return ret
 
 
-def __do_tests(
-    run_id: str,
-    vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]],
-):
-    results_dir_for_this_runid = f"./result-files-one-run/results-{run_id}"
-    try:
-        os.mkdir(results_dir_for_this_runid)
-    except FileExistsError:
-        pass
+def run_test(run_id, src: Tuple[CloudRegion, Dict], dst: Tuple[CloudRegion, Dict]):
+    logging.info("running test from %s to %s", src, dst)
+    src_region_, src_addr_infos = src
+    dst_region_, dst_addr_infos = dst
 
-    def run_test(run_id, src: Tuple[CloudRegion, Dict], dst: Tuple[CloudRegion, Dict]):
-        logging.info("running test from %s to %s", src, dst)
-        src_region_, src_addr_infos = src
-        dst_region_, dst_addr_infos = dst
-        env = {
-            "PATH": os.environ["PATH"],
-            "RUN_ID": run_id,
-            "SERVER_PUBLIC_ADDRESS": dst_addr_infos["address"],
-            "SERVER_CLOUD": dst_region_.cloud.name,
-            "CLIENT_CLOUD": src_region_.cloud.name,
-            "SERVER_REGION": dst_region_.region_id,
-            "CLIENT_REGION": src_region_.region_id,
+    env = {
+        "PATH": os.environ["PATH"],
+        "RUN_ID": run_id,
+        "SERVER_PUBLIC_ADDRESS": dst_addr_infos["address"],
+        "SERVER_CLOUD": dst_region_.cloud.name,
+        "CLIENT_CLOUD": src_region_.cloud.name,
+        "SERVER_REGION": dst_region_.region_id,
+        "CLIENT_REGION": src_region_.region_id,
+    }
+    if src_region_.cloud == Cloud.AWS:
+        env |= {
+            "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
+            "BASE_KEYNAME": basename_key_for_aws_ssh,
         }
-        if src_region.cloud == Cloud.AWS:
+    elif dst_region_.cloud == Cloud.GCP:
+        try:
             env |= {
-                "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
-                "BASE_KEYNAME": basename_key_for_aws_ssh,
+                "CLIENT_NAME": src_addr_infos["name"],
+                "CLIENT_ZONE": src_addr_infos["zone"],
             }
-        elif src_region.cloud == Cloud.GCP:
-            try:
-                env |= {
-                    "CLIENT_NAME": src_addr_infos["name"],
-                    "CLIENT_ZONE": src_addr_infos["zone"],
-                }
-            except KeyError as ke:
-                logging.error("{src_addr_infos=}")
-                raise ke
+        except KeyError as ke:
+            logging.error("{src_addr_infos=}")
+            raise ke
 
-        else:
-            raise Exception(f"Implement {src_region}")
+    else:
+        raise Exception(f"Implement {src_region_}")
 
-        non_str = [(k, v) for k, v in env.items() if type(v) != str]
-        assert not non_str, non_str
-
-        script = src_region.script_for_test_from_region()
+    script = src_region_.script_for_test_from_region()
+    try:
         process_stdout = run_subprocess(script, env)
+    except ChildProcessError as cpe:
+        write_failed_test((src[0], dst[0]))
+        raise cpe
+    else:
         logging.info(
             "Test %s result from %s to %s is %s", run_id, src, dst, process_stdout
         )
         test_result = process_stdout + "\n"
         result_j = json.loads(test_result)
 
-        results_for_one_run_file = (
-            f"{results_dir_for_this_runid}/results-{src_region_}-to-{dst_region_}.json"
-        )
-        # We write separate files for each test to avoid race conditions, since tests happen in parallel.
-        with open(
-            results_for_one_run_file,
-            "w",
-        ) as f:
-            json.dump(result_j, f)
-            logging.info("Wrote %s", results_for_one_run_file)
+        write_results_for_run(result_j, run_id, src_region_, dst_region_)
 
+
+def __do_tests(
+        run_id: str,
+        vm_region_and_address_infos: List[Tuple[CloudRegion, Dict]],
+):
     vm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
 
     assert len(vm_region_and_address_infos) % 2 == 0, (
@@ -203,8 +196,7 @@ def __do_tests(
         thread.join()
         logging.info('"%s" done', thread.name)
 
-    combine_results_to_csv(results_dir_for_this_runid)
-    shutil.rmtree(results_dir_for_this_runid)
+    combine_results_to_csv(run_id)
 
 
 def __crossproduct_no_intraregion() -> List[Tuple[CloudRegion, CloudRegion]]:
@@ -257,7 +249,7 @@ def __setup_and_tests_and_teardown(run_id: str, regions: List[CloudRegion]):
     # Because we launch VMs and runs tests multithreaded, if one launch fails or one tests fails, run_tests() will not thrown an Exception.
     # So, VMs will still be cleaned up
     assert (
-        len(regions) % 2 == 0
+            len(regions) % 2 == 0
     ), f"Expect even-length list to represent pairs: len was {len(regions)}: {regions}"
 
     vm_region_and_address_infos = __create_vms(regions, run_id)
@@ -274,7 +266,7 @@ def test_batch(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
 
 
 def most_frequent_region_first_func(
-    region_pairs,
+        region_pairs,
 ) -> Callable[[Tuple[CloudRegion, CloudRegion]], Tuple[int, str]]:
     """:return a function that will allow sorting in descending order of freq of appearance
     of a CloudRegion, with the name of the CloudRegion as a tiebreaker"""
@@ -285,13 +277,13 @@ def most_frequent_region_first_func(
 
     def key_func(pair: Tuple[CloudRegion, CloudRegion]) -> Tuple[int, str]:
         descending_freq = -1 * (counts[pair[0]] + counts[pair[1]])
-        return (descending_freq, repr(pair))
+        return descending_freq, repr(pair)
 
     return key_func
 
 
 def __parse_region_pairs(
-    region_pairs: str,
+        region_pairs: str,
 ) -> Optional[List[Tuple[CloudRegion, CloudRegion]]]:
     if not region_pairs:
         return None
@@ -301,7 +293,7 @@ def __parse_region_pairs(
         if dash_idx == -1:
             raise ValueError(f"{s} not a value cloud-region string")
         cloud_s = s[0:dash_idx]
-        region_s = s[dash_idx + 1 :]
+        region_s = s[dash_idx + 1:]
         return get_region(cloud_s, region_s)
 
     pairs_s = region_pairs.split(";")
@@ -311,20 +303,34 @@ def __parse_region_pairs(
     ]
     return pairs_regions
 
+
 def __batches_of_tests(
-    batch_size: int,
-    max_batches: int,
-    only_this_cloud: Cloud,
-    preselected_region_pairs: List[Tuple[CloudRegion, CloudRegion]],
+        batch_size: int,
+        max_batches: int,
+        only_this_cloud: Cloud,
+        preselected_region_pairs: List[Tuple[CloudRegion, CloudRegion]],
 ):
     if preselected_region_pairs:
         region_pairs = preselected_region_pairs
     else:
         region_pairs = __crossproduct_no_intraregion()
-        region_pairs = without_already_attempted(region_pairs)
+        region_pairs = without_already_succeeded(region_pairs)
         region_pairs = sorted(
             region_pairs, key=most_frequent_region_first_func(region_pairs)
         )
+        before_filter_unsup = len(region_pairs)
+
+        def has_unsupported_acn_aws_region(p):
+            return any(is_unsupported_auth_aws_region(p[i]) for i in [0, 1])
+
+        region_pairs = [
+            p for p in region_pairs if not has_unsupported_acn_aws_region(p)
+        ]
+        if len(region_pairs) < before_filter_unsup:
+            logging.info(
+                "Dropped %d pairs with an unsupported AWS region",
+                before_filter_unsup - len(region_pairs),
+            )
 
     if only_this_cloud:
         region_pairs = [
@@ -333,19 +339,8 @@ def __batches_of_tests(
             if p[0].cloud == only_this_cloud and p[1].cloud == only_this_cloud
         ]
 
-    def has_unsupported_acn_aws_region(p):
-        return any(is_unsupported_auth_aws_region(p[i]) for i in [0, 1])
-
-    before_filter_unsup = len(region_pairs)
-    region_pairs = [p for p in region_pairs if not has_unsupported_acn_aws_region(p)]
-    if len(region_pairs) < before_filter_unsup:
-        logging.info(
-            "Dropped %d pairs with an unsupported AWS region",
-            before_filter_unsup - len(region_pairs),
-        )
-
     batches = [
-        region_pairs[i : i + batch_size]
+        region_pairs[i: i + batch_size]
         for i in range(0, len(region_pairs), batch_size)
     ]
     if max_batches < math.inf:
@@ -364,9 +359,9 @@ def __command_line_args():
         type=str,
         default=None,
         help="Pairs to test, where "
-        "cloud and region names are separated by dash; source and destination are separated by comma; "
-        "and pairs are separated by semicolon, "
-        "as for example: AWS-us-east-1,AWS-us-east-2;AWS-us-west-1,GCP-us-west3",
+             "cloud and region names are separated by dash; source and destination are separated by comma; "
+             "and pairs are separated by semicolon, "
+             "as for example: AWS-us-east-1,AWS-us-east-2;AWS-us-west-1,GCP-us-west3",
     )
     parser.add_argument(
         "--batch_size",
@@ -391,7 +386,6 @@ def __command_line_args():
 
 
 def main():
-
     logging.info("Started at %s", datetime.datetime.now().isoformat())
 
     args = __command_line_args()
