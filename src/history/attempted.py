@@ -56,7 +56,7 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     )
 
 
-def write_failed_test(src: CloudRegion,dst: CloudRegion):
+def write_failed_test(src: CloudRegion, dst: CloudRegion):
     output_filename = __failed_tests_csv_file()
     write_hdr = not os.path.exists(output_filename)
 

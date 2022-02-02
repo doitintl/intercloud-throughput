@@ -79,10 +79,12 @@ def create_vms(
     return ret
 
 
-def __filter_regions_with_no_vms(regionwithvm_pairs:List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]])->List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]:
+def __filter_regions_with_no_vms(
+    regionwithvm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
+) -> List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]:
     missing_regions = []
-    skip_tests:List[Tuple[ CloudRegion, CloudRegion]]
-    skip_tests= []
+    skip_tests: List[Tuple[CloudRegion, CloudRegion]]
+    skip_tests = []
 
     ret = []
     for regionwithvm_pair in regionwithvm_pairs:
@@ -100,7 +102,8 @@ def __filter_regions_with_no_vms(regionwithvm_pairs:List[Tuple[Tuple[CloudRegion
     if missing_regions:
         logging.info("Regions where no VM was successfully created %s", missing_regions)
         logging.info(
-            "Tests to skip because VM unavailable on at least one region: %s", skip_tests
+            "Tests to skip because VM unavailable on at least one region: %s",
+            skip_tests,
         )
         for tst in skip_tests:
             write_failed_test(*tst)

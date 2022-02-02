@@ -19,7 +19,7 @@ def delete_vms(run_id, regions: List[CloudRegion]):
 
     del_gcp_thread.start()
     del_aws_thread.join(timeout=thread_timeout)
-    del_gcp_thread.join(timeout=6*60)
+    del_gcp_thread.join(timeout=6 * 60)
 
 
 def __delete_aws_vms(run_id, regions):

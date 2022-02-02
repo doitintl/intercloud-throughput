@@ -8,7 +8,9 @@ from util import subprocesses
 
 __gcp_default = None
 
-thread_timeout=5*60
+thread_timeout = 5 * 60
+
+
 def set_cwd():
     previous_cwd = os.getcwd()
 
@@ -25,10 +27,12 @@ def set_cwd():
 
     _new_cwd = os.getcwd()
 
-def chunks(lst:List, n:int):
+
+def chunks(lst: List, n: int):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+        yield lst[i : i + n]
+
 
 def random_id():
     vowel = "aeiou"
