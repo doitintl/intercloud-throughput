@@ -18,8 +18,8 @@ def preprocess():
         regions = data["regions"]
         for region in regions:
             az_ = region["az"][
-                  :-1
-                  ]  # all AZs of a given region in this list have the same lat/long
+                :-1
+            ]  # all AZs of a given region in this list have the same lat/long
             row = {
                 "source": "geoloc",
                 "cloud": "AWS",

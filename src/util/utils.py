@@ -2,19 +2,20 @@ import logging
 import os
 import random
 import string
+from typing import List
 
 from util import subprocesses
 
-GCP_DFLT = None
+__gcp_default = None
 
-
+thread_timeout=5*60
 def set_cwd():
     previous_cwd = os.getcwd()
 
     parent = previous_cwd
     lst = os.listdir(parent)
     while parent != "/" and not all(
-            map(lambda s: s in lst, ["scripts", "startup-scripts", "src"])
+        map(lambda s: s in lst, ["scripts", "startup-scripts", "src"])
     ):
         parent = os.path.abspath(parent + "/" + "..")
         os.chdir(parent)
@@ -22,10 +23,12 @@ def set_cwd():
     if parent == "/":
         raise FileNotFoundError(f"Cannot find project root path from {previous_cwd}")
 
-    new_cwd = os.getcwd()
-    if previous_cwd != new_cwd:
-        logging.info("Changed dir from %s to %s", previous_cwd, new_cwd)
+    _new_cwd = os.getcwd()
 
+def chunks(lst:List, n:int):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def random_id():
     vowel = "aeiou"
@@ -38,14 +41,14 @@ def random_id():
 
 
 def gcp_default_project():
-    global GCP_DFLT
-    if not GCP_DFLT:
+    global __gcp_default
+    if not __gcp_default:
         env = {"PATH": os.environ["PATH"]}
-        GCP_DFLT = subprocesses.run_subprocess("./scripts/gcp-project.sh", env=env)
-        if GCP_DFLT.endswith("\n"):
-            GCP_DFLT = GCP_DFLT[:-1]
+        __gcp_default = subprocesses.run_subprocess("./scripts/gcp-project.sh", env=env)
+        if __gcp_default.endswith("\n"):
+            __gcp_default = __gcp_default[:-1]
 
-    return GCP_DFLT
+    return __gcp_default
 
 
 def dedup(seq):

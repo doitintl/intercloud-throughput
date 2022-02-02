@@ -29,7 +29,7 @@ def graph_full_testing_history():
     ___results = list(
         filter(
             lambda d: (
-                    (d["from_cloud"], d["from_region"]) != (d["to_cloud"], d["to_region"])
+                (d["from_cloud"], d["from_region"]) != (d["to_cloud"], d["to_region"])
             ),
             results,
         )
@@ -77,7 +77,7 @@ def graph_full_testing_history():
     plt.title("Distance to latency & throughput")
 
     date_s = datetime.now().strftime("%Y-%m-%dT%H%-M-%S")
-    chart_file = f"./charts/{date_s}.png"
+    chart_file = f"{results_dir}/charts/{date_s}.png"
     pyplot.savefig(chart_file)
 
     plt.show()

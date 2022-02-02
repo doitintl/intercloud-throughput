@@ -69,7 +69,7 @@ def __combine():
         "source",
     ]
 
-    with open("./reference_data/locations.csv", "w") as f:
+    with open("./reference_data/location_datasources.csv", "w") as f:
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(geoloc_list)

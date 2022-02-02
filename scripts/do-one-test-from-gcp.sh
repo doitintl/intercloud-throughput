@@ -10,7 +10,7 @@ IPERF_OUTPUT=""
 
 set +e
 N=10
-while ((  $N > 0 )) && [[ -z "$IPERF_OUTPUT" ]]; do
+while ((  N > 0 )) && [[ -z "$IPERF_OUTPUT" ]]; do
     sleep 3
     # Could do iperf -d for twoway
     IPERF_OUTPUT=$(gcloud compute ssh "$CLIENT_NAME"  --zone="${CLIENT_ZONE}" --command "iperf -c $SERVER_PUBLIC_ADDRESS -y C" )
@@ -22,12 +22,12 @@ if [[ -z "$IPERF_OUTPUT" ]]; then
 fi
 
 export BITRATE
-BITRATE=$(echo $IPERF_OUTPUT | awk -F, '{print  $(NF-1) }' )
+BITRATE=$(echo "$IPERF_OUTPUT" | awk -F, '{print  $(NF-1) }' )
 
 PING_OUTPUT=$(gcloud compute ssh "$CLIENT_NAME"  --zone="${CLIENT_ZONE}" --command "ping $SERVER_PUBLIC_ADDRESS -c 5" |tail -n 1)
 
 export AVG_RTT
-AVG_RTT=$( echo ${PING_OUTPUT} | awk -F= '{print $2}' | awk -F/ '{print $2}' )
+AVG_RTT=$( echo "${PING_OUTPUT}" | awk -F= '{print $2}' | awk -F/ '{print $2}' )
 export DATE_S
 DATE_S=$( date -u +"%Y-%m-%dT%H:%M:%SZ" )
 

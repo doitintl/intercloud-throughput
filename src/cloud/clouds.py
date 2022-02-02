@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import csv
 import inspect
-import itertools
-import logging
 import re
 from enum import Enum
 from functools import total_ordering
 from typing import Dict
-from typing import List, Optional
+from typing import List
 
 import geopy.distance
 
-from util.utils import gcp_default_project, set_cwd
+from util.utils import gcp_default_project
 
 basename_key_for_aws_ssh = "cloud-perf"
 
@@ -28,27 +26,20 @@ class Cloud(Enum):
 @total_ordering
 class CloudRegion:
     def __init__(
-            self,
-            cloud: Cloud,
-            region_id: str,
-            lat: float = None,
-            long: float = None,
-            gcp_project: Optional[str] = None,
+        self, cloud: Cloud, region_id: str, lat: float = None, long: float = None
     ):
         curframe = inspect.currentframe()
         calframe = inspect.getouterframes(curframe, 2)
         assert (
-                calframe[1][3] == "get_regions"
+            calframe[1][3] == "get_regions"
         ), "Call this only in building the regions list"
         assert isinstance(cloud, Cloud), type(cloud)
         assert re.match(r"[a-z][a-z-]+\d$", region_id)
-        assert (cloud == Cloud.GCP) == bool(gcp_project), f"{cloud} and {gcp_project}"
 
         self.lat = lat
         self.long = long
         self.cloud = cloud
         self.region_id = region_id
-        self.gcp_project = gcp_project
 
     def script(self):
         return f"./scripts/{self.lowercase_cloud_name()}-launch.sh"
@@ -60,15 +51,14 @@ class CloudRegion:
         return f"./scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
-        gcp = "=" + self.gcp_project if self.gcp_project else ""
-        return f"{self.cloud.name}-{self.region_id}{gcp}"
+        return f"{self.cloud.name}-{self.region_id}"
 
     def __hash__(self):
         return hash(repr(self))
 
     def env(self) -> Dict[str, str]:
         envs = {
-            Cloud.GCP: {"PROJECT_ID": self.gcp_project},
+            Cloud.GCP: {"PROJECT_ID": gcp_default_project()},
             Cloud.AWS: {"BASE_KEYNAME": basename_key_for_aws_ssh},
         }
         return envs[self.cloud]
@@ -81,41 +71,18 @@ class CloudRegion:
         return repr(self) < repr(other)
 
     def __eq__(self, other):
-        return (
-                self.region_id == other.region_id
-                and self.cloud == other.cloud
-                and self.gcp_project == other.gcp_project
-        )
+        return self.region_id == other.region_id and self.cloud == other.cloud
 
 
-__REGIONS: List[CloudRegion]
-__REGIONS = []
+__regions: List[CloudRegion]
+__regions = []
 
 
-def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
-    """ "
-    :param gcp_project is optional, if provided, will be used for GCP regions. Otherwise, built-in default will be used.
-    """
-    # Though each CloudRegion can take a gcp_project parameter,
-    # for now we only support 1 gcp project for all.
-    # So, only_gcp_project only exists to impose that constraint
-    only_gcp_project = None
+def get_regions() -> List[CloudRegion]:
 
-    def gcp_proj(cld, gcp_project):
-        if cld == Cloud.GCP.name:
-            ret = gcp_project or gcp_default_project()
-            nonlocal only_gcp_project
-            assert (
-                    not only_gcp_project or ret == only_gcp_project
-            ), f"{ret}!={only_gcp_project}"
-            only_gcp_project = only_gcp_project or ret  # could omit only_gcp_project or
-            return ret
-        else:
-            return
+    global __regions
 
-    global __REGIONS
-
-    if not __REGIONS:
+    if not __regions:
 
         fp = open(f"./reference_data/locations.csv")
         rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
@@ -131,25 +98,16 @@ def get_regions(gcp_project: Optional[str] = None) -> List[CloudRegion]:
 
             cloud_s = row["cloud"]
 
-            __REGIONS.append(
-                CloudRegion(
-                    Cloud(cloud_s),
-                    row["region"],
-                    lat,
-                    long,
-                    gcp_proj(cloud_s, gcp_project),
-                )
-            )
+            __regions.append(CloudRegion(Cloud(cloud_s), row["region"], lat, long))
         fp.close()
-    return __REGIONS
+    return __regions
 
 
 def get_region(
-        cloud: [Cloud | str],
-        region_id: str,
-        gcp_project: Optional[str] = None,
-):
-    regions = get_regions(gcp_project)
+    cloud: [Cloud | str],
+    region_id: str,
+) -> CloudRegion:
+    regions = get_regions()
     if isinstance(cloud, str):
         cloud = Cloud(cloud)
     assert isinstance(cloud, Cloud), cloud
@@ -167,14 +125,3 @@ def interregion_distance(r1: CloudRegion, r2: CloudRegion):
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
     assert (r1 == r2) == (ret == 0), "Expect 0 km if and only if same region"
     return ret
-
-
-def print_interregion_distances():
-    pairs = itertools.product(get_regions(), get_regions())
-    for pair in pairs:
-        logging.info("%s: %s km", pair, interregion_distance(pair[0], pair[1]))
-
-
-if __name__ == "__main__":
-    set_cwd()
-    print_interregion_distances()

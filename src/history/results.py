@@ -28,7 +28,7 @@ def __results_csv():
 
 
 def write_results_for_run(
-        result_j, run_id: str, src_region_: CloudRegion, dst_region_: CloudRegion
+    result_j, run_id: str, src_region_: CloudRegion, dst_region_: CloudRegion
 ):
     try:
         os.mkdir(__results_dir_for_run(run_id))
@@ -39,8 +39,8 @@ def write_results_for_run(
     )
     # We write separate files for each test to avoid race conditions, since tests happen in parallel.
     with open(
-            results_for_one_run_file,
-            "w",
+        results_for_one_run_file,
+        "w",
     ) as f:
         json.dump(result_j, f)
         logging.info("Wrote %s", results_for_one_run_file)
@@ -88,7 +88,7 @@ def load_results_csv() -> List[Dict]:
 
 def record_supernumerary_tests():
     def record_test_count(
-            title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id_: str
+        title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id_: str
     ):
         tests_per_regionpair = collections.Counter(region_pairs)
         regionpair_items = sorted(
@@ -98,7 +98,6 @@ def record_supernumerary_tests():
             f"{v},{k[0]},{k[1]},{k[2]},{k[3]}" for k, v in regionpair_items
         ]
         s = "\n".join(regionpair_strings)
-        logging.info("%s %s", id_, s)
         with open(results_dir + "/" + f"{id_}.csv", "w") as f:
             f.write("#" + title + "\n")
             f.write(",".join(hdrs) + "\n")

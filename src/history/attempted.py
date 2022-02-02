@@ -16,8 +16,11 @@ def __failed_tests_csv_file():
     return f"{results_dir}/failed-tests.csv"
 
 
+stats_logged = False
+
+
 def without_already_succeeded(
-        region_pairs: List[Tuple[CloudRegion, CloudRegion]]
+    region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(
         load_results_csv()
@@ -28,15 +31,16 @@ def without_already_succeeded(
     old_failures = [p for p in already_attempted if p not in successful_results]
 
     no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
-    # no_redo_any_attempted = list(
-    #    filter(lambda r: r not in already_attempted, region_pairs)
-    # )
-    print(
-        f"Of {len(region_pairs)} to be tested; "
-        f"Excluding the {len(successful_results)} successes; "
-        f"Not excluding the {len(old_failures)} failures; "
-        f"Testing {len(no_redo_success)} pairs."
-    )
+    global stats_logged
+    if not stats_logged:
+        logging.info(
+            f"Of {len(region_pairs)}; "
+            f"Excluding the {len(successful_results)} successes; "
+            f"Not excluding the {len(old_failures)} failures; "
+            f"Leaving {len(no_redo_success)} pairs."
+        )
+        stats_logged = True
+
     return no_redo_success
 
 
@@ -52,15 +56,16 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     )
 
 
-def write_failed_test(p: Tuple[CloudRegion, CloudRegion]):
-    write_hdr = not os.path.exists(__failed_tests_csv_file())
+def write_failed_test(src: CloudRegion,dst: CloudRegion):
+    output_filename = __failed_tests_csv_file()
+    write_hdr = not os.path.exists(output_filename)
 
     entry = (
-        f"{datetime.now().isoformat()},{p[0].cloud},{p[0].region_id},"
-        f"{p[1].cloud},{p[1].region_id}\n"
+        f"{datetime.now().isoformat()},{src.cloud},{src.region_id},"
+        f"{dst.cloud},{dst.region_id}\n"
     )
 
-    with open(__failed_tests_csv_file(), "a") as f:
+    with open(output_filename, "a") as f:
         if write_hdr:
             f.write(
                 ",".join(
@@ -69,7 +74,7 @@ def write_failed_test(p: Tuple[CloudRegion, CloudRegion]):
                 + "\n"
             )
         f.write(entry)
-        logging.info("Wrote to %s", __failed_tests_csv_file())
+        logging.info("Wrote to %s", output_filename)
 
 
 def write_attempted_tests(region_pairs: List[Tuple[CloudRegion, CloudRegion]]):
