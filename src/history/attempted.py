@@ -15,10 +15,6 @@ def __attempted_tests_csv_file():
 def __failed_tests_csv_file():
     return f"{results_dir}/failed-tests.csv"
 
-
-stats_logged = False
-
-
 def without_already_succeeded(
     region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
@@ -31,15 +27,13 @@ def without_already_succeeded(
     old_failures = [p for p in already_attempted if p not in successful_results]
 
     no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
-    global stats_logged
-    if not stats_logged:
-        logging.info(
-            f"Of {len(region_pairs)}; "
+    logging.info(
+            f"Of {len(region_pairs)} requested in this batch; "
             f"Excluding the {len(successful_results)} successes; "
             f"Not excluding the {len(old_failures)} failures; "
             f"Leaving {len(no_redo_success)} pairs."
         )
-        stats_logged = True
+
 
     return no_redo_success
 

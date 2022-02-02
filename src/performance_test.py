@@ -91,31 +91,55 @@ def __batches_of_tests(
         # regions.sort(key=ascending_freq(regions)) TODO ascending freq of already-done tests
         batches_of_regions = list(chunks(regions, regions_per_batch))
 
-        if max_batches < math.inf:
-            batches_of_regions = batches_of_regions[:max_batches]
-        batches_of_tests: List[List[Tuple[CloudRegion, CloudRegion]]]
-        batches_of_tests = []
-        for b in batches_of_regions:
-            crossproduct_regionpairs = list(
-                filter(lambda p: p[0] != p[1], product(b, b))
-            )
-            sz_before = len(crossproduct_regionpairs)
-            crossproduct_regionpairs = without_already_succeeded(
-                crossproduct_regionpairs
-            )
-            if len(crossproduct_regionpairs) != sz_before:
-                logging.info(
-                    "Dropping %d region pairs that already succeeded",
-                    sz_before - len(crossproduct_regionpairs),
-                )
-            if crossproduct_regionpairs:  # Might have already done all these tests
-                batches_of_tests.append(crossproduct_regionpairs)
 
+        batches_of_tests: List[List[Tuple[CloudRegion, CloudRegion]]]
+        while True:
+            if max_batches < math.inf:
+               batches_of_regions_trunc = batches_of_regions[:max_batches]
+            else:
+                batches_of_regions_trunc=batches_of_regions
+            batches_of_tests: List[List[Tuple[CloudRegion, CloudRegion]]]
+            batches_of_tests = __make_batches(batches_of_regions_trunc)
+
+            if not batches_of_tests and not __max_possible(max_batches, len(get_regions()), regions_per_batch):
+                logging.info("Made no batches; max was %d. Will retry with bigger max_batches",  max_batches)
+                max_batches+=1
+                continue
+            else:
+                break
     logging.info(
         f"Will run %d tests in %d batches",
-        sum(len(b) for b in batches_of_tests),
+        __num_tests(batches_of_tests),
         len(batches_of_tests),
     )
+    return batches_of_tests
+
+
+def __max_possible(max_batches, num_regions, regions_per_batch):
+    return  max_batches * regions_per_batch * (regions_per_batch - 1) > num_regions * (num_regions - 1)
+
+
+def __num_tests(batches_of_tests):
+    return sum(len(b) for b in batches_of_tests)
+
+
+def __make_batches(batches_of_regions):
+    batches_of_tests = []
+    for b in batches_of_regions:
+        crossproduct_regionpairs = list(
+            filter(lambda p: p[0] != p[1], product(b, b))
+        )
+        sz_before = len(crossproduct_regionpairs)
+        crossproduct_regionpairs = without_already_succeeded(
+            crossproduct_regionpairs
+        )
+        if len(crossproduct_regionpairs) != sz_before:
+            logging.info(
+                "Dropping %d region pairs that already succeeded",
+                sz_before - len(crossproduct_regionpairs),
+            )
+        if crossproduct_regionpairs:  # Might have already done all these tests
+            batches_of_tests.append(crossproduct_regionpairs)
     return batches_of_tests
 
 

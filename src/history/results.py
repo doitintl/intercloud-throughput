@@ -16,6 +16,11 @@ logging.basicConfig(
 )
 
 results_dir = os.environ.get("PERFTEST_RESULTSDIR", "./results")
+try:
+    os.mkdir(results_dir)
+except FileExistsError:
+    pass
+
 logging.info("Results dir is %s", results_dir)
 
 
@@ -113,7 +118,7 @@ def record_supernumerary_tests():
         ]
         hdr = ["count", "from_cloud", "from_region", "to_cloud", "to_region"]
         record_test_count(
-            "Tests per Region Pair", hdr, by_test_pairs, "tests_per_regionpair"
+            "Tests per Region Pair", hdr, by_test_pairs, "tests-per-regionpair"
         )
         intraregion_tests = list(
             filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)

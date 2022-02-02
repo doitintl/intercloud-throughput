@@ -1,5 +1,7 @@
 import logging
+import os
 from datetime import datetime
+from os import mkdir
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,6 +80,12 @@ def graph_full_testing_history():
 
     date_s = datetime.now().strftime("%Y-%m-%dT%H%-M-%S")
     chart_file = f"{results_dir}/charts/{date_s}.png"
+
+    try:
+        mkdir( os.path.dirname(os.path.realpath(chart_file)))
+    except FileExistsError:
+        pass
+
     pyplot.savefig(chart_file)
 
     plt.show()

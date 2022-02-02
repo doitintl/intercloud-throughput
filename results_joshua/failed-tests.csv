@@ -1,3 +1,9 @@
 from_cloud,from_region,to_cloud,to_region
 GCP,us-east1,GCP,us-east1
 2022-02-02T16:04:05.906391,GCP,asia-east2,GCP,asia-northeast2
+2022-02-02T19:51:06.523581,AWS,eu-central-1,AWS,ap-southeast-1
+2022-02-02T19:51:06.525673,AWS,eu-central-1,AWS,ap-southeast-2
+2022-02-02T19:51:06.527005,AWS,eu-central-1,AWS,ca-central-1
+2022-02-02T19:55:16.851895,AWS,eu-central-1,AWS,ca-central-1
+2022-02-02T19:55:22.797649,AWS,eu-central-1,AWS,ap-southeast-2
+2022-02-02T19:55:26.839094,AWS,eu-central-1,AWS,ap-southeast-1
