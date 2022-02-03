@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import string
@@ -59,3 +60,17 @@ def dedup(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
+
+from time import time
+
+
+class Timer(object):
+    def __init__(self, description):
+        self.description = description
+    def __enter__(self):
+        self.start = time()
+    def __exit__(self, type, value, traceback):
+        self.end = time()
+        logging.info (f"Timer {self.description}: {round(self.end - self.start,1)} seconds")
+
+

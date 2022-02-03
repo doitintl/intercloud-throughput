@@ -46,12 +46,12 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     )
 
 
-def write_failed_test(src: CloudRegion, dst: CloudRegion):
+def write_failed_test(src: CloudRegion, dst: CloudRegion, pytz=None):
     output_filename = f"{results_dir}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
     entry = (
-        f"{datetime.now().isoformat()},{src.cloud},{src.region_id},"
+        f"{datetime.utcnow( ).isoformat()+'Z'},{src.cloud},{src.region_id},"
         f"{dst.cloud},{dst.region_id}\n"
     )
 
@@ -64,7 +64,6 @@ def write_failed_test(src: CloudRegion, dst: CloudRegion):
                 + "\n"
             )
         f.write(entry)
-        #logging.info("Wrote to %s", output_filename)
 
 
 def write_attempted_tests(region_pairs_about_to_try: List[Tuple[CloudRegion, CloudRegion]]):
@@ -72,7 +71,7 @@ def write_attempted_tests(region_pairs_about_to_try: List[Tuple[CloudRegion, Clo
     for pair in region_pairs_about_to_try:
         attempts.append(
             {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.utcnow().isoformat()+"Z",
                 "from_cloud": pair[0].cloud,
                 "from_region": pair[0].region_id,
                 "to_cloud": pair[1].cloud,

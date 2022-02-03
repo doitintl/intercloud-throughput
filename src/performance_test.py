@@ -24,7 +24,7 @@ from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
 from test_steps.do_test import do_tests
 from test_steps.utils import unique_regions
-from util.utils import set_cwd, random_id, chunks
+from util.utils import set_cwd, random_id, chunks, Timer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -226,9 +226,10 @@ def __command_line_args():
         type=int,
         default=6,
         help="Number of regions to be tested simultaneously. "
-        "Each cross-product combination will be tested with both directions of source/destination, but without intra-region (self-to-self) pairs. "
-        "Thus, there will be batch_size * (batch_size-1)  tests in a batch)."
-        "Only used if --region_pairs not used.",
+        "Each cross-product combination will be tested with both directions of source/destination "
+        "( but without intra-region (self-to-self) pairs). "
+        "Thus, there will be (batch_size * (batch_size-1))  tests in a batch)."
+        "Parameter is only  used if --region_pairs is not used.",
     )
     parser.add_argument(
         "--max_batches",
@@ -236,7 +237,7 @@ def __command_line_args():
         default=math.inf,
         help="Max number of batches of regions. "
         'Together with batch_size, this can be used to limit number of tests. Default indicates "do all". '
-        "Only used if --region_pairs not used.",
+        "Parameter is only  used if --region_pairs is not used.",
     )
 
     parser.add_argument(
@@ -245,14 +246,14 @@ def __command_line_args():
         default=None,
         help='"GCP" or "AWS" means ignore tests that use a different cloud. '
         'Default (None) means "Don\'t ignore any clouds."'
-        "Only used if --region_pairs not used.",
+             "Parameter is only  used if --region_pairs is not use7d.",
     )
     args = parser.parse_args()
     return args
 
 
 def main():
-    logging.info("Started at %s", datetime.datetime.now().isoformat())
+    logging.info("Started at %s", datetime.datetime.utcnow().isoformat()+'Z')
 
     args = __command_line_args()
     batches = __batches_of_tests(
@@ -275,5 +276,7 @@ def main():
 
 
 if __name__ == "__main__":
-    set_cwd()
-    main()
+
+    with Timer("Full run"):
+     set_cwd()
+     main()

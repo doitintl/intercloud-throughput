@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from datetime import datetime
 from os import mkdir
@@ -18,7 +19,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-bitrate_unit_int = 1e9
+bitrate_unit_int = 1/10
 
 
 def graph_full_testing_history():
@@ -55,7 +56,7 @@ def graph_full_testing_history():
     results.sort(key=lambda d: d["distance"])
 
     dist = [r["distance"] for r in results]
-    bitrate = [r["bitrate_Bps"] / bitrate_unit_int for r in results]
+    bitrate = [math.log(r["bitrate_Bps"]) / bitrate_unit_int for r in results]
     avg_rtt = [r["avgrtt"] for r in results]
     logging.info(
         "Distance in [%s,%s]; Bitrate in [%s,%s], RTT in [%s, %s]",
@@ -71,11 +72,13 @@ def graph_full_testing_history():
     color_for_bitrate = "blue"
 
     plt.xlabel("distance")
-    bitrate_unit_s = f"{int(bitrate_unit_int / 1e6)} Mbps"
+    #bitrate_unit_s = f"{int(bitrate_unit_int / 1e6)} Mbps"
+    bitrate_unit_s="bps (log scale)"
     plt.ylabel(f"seconds    |   {bitrate_unit_s}")
 
     plt.plot(dist, avg_rtt, color=color_for_avg_rtt, label="avg rtt")
     plt.plot(dist, bitrate, color=color_for_bitrate, label="bitrate")
+
     __plot_linear_fit(dist, avg_rtt, color_for_avg_rtt)
     __plot_linear_fit(dist, bitrate, "%s" % color_for_bitrate)
 
@@ -83,7 +86,7 @@ def graph_full_testing_history():
 
     plt.title("Distance to latency & throughput")
 
-    date_s = datetime.now().strftime("%Y-%m-%dT%H%-M-%S")
+    date_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
     chart_file = f"{results_dir}/charts/{date_s}.png"
 
     try:
@@ -100,16 +103,17 @@ def graph_full_testing_history():
 LinAlgError_counter = 0
 
 
-def __plot_linear_fit(dist, y, color, lbl=None):
+def __plot_linear_fit(dist, y, color, lbl=None ):
     dist_np = np.array(dist)
     y_np = np.array(y)
     try:
 
         # noinspection PyTupleAssignmentBalance
-        m_bitrate, b_bitrate = np.polyfit(dist_np, y_np, 1)
+        m, b = np.polyfit(dist_np, y_np, 1)
+
         plt.plot(
             dist_np,
-            m_bitrate * dist_np + b_bitrate,
+            m * dist_np + b,
             color=color,
             linestyle="dashed",
             label=lbl,

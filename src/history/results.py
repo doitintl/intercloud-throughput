@@ -69,8 +69,6 @@ def load_past_results() -> List[Dict]:
                     )
                     raise v
             else:
-                # TODO could convert datetime ; could convert from_cloud to Cloud obj and
-                # Cloud/region strs to CLoudRegion obj
                 ret[k] = v
 
         return ret
@@ -100,7 +98,7 @@ def __count_tests_per_region_pair(ascending:bool, region_pairs: List[Tuple[str, 
         items=sorted(items, key=lambda i: multiplier * i[1])
         assert not items or len(items[0]) == 2 and type(items[0][1]) == int, items[0]
 
-        # TODO here and elsewhere, timestamps  are at time of writing file,
+        # Here and elsewhere, timestamps  are at time of writing file,
         # so that the same testrun can get different timestamps. To allow identifying
         # a testrun, could use a timestamp from the begining of the run.
         # But run_id also gives that

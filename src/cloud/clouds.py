@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import inspect
+import logging
 import re
 from enum import Enum
 from functools import total_ordering
@@ -97,7 +98,12 @@ def get_regions() -> List[CloudRegion]:
 
             cloud_s = row["cloud"]
 
-            __regions.append(CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), row["region"], lat, long))
+            region_id = row["region"]
+            if region_id=="eu-central-1":#TODO figure out why!
+                logging.info("Excluding %s until we can figure out why SSH login is impossible", region_id
+                            )
+            __regions.append(CloudRegion(__PRIVATE__INIT__,
+                                         Cloud(cloud_s), region_id, lat, long))
         fp.close()
     return __regions
 
