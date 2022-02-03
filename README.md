@@ -47,5 +47,5 @@ then test all directed pairs (source and destination) among these VMs.
 * For tracking
    * `attempted-tests.csv` lists attempted tests, even ones that then fail.
    * `failed-tests.csv` lists failed tests.
-   * `intraregion_tests.csv` lists tests where the source and destination were the same region.
+   * `intraregion-tests.csv` lists tests where the source and destination were the same region.
    * `tests-per-regionpair.csv` tracks tests per region pair (so we can see if there were repeats).

@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict
 
 from cloud.clouds import CloudRegion, Cloud, basename_key_for_aws_ssh
 from history.attempted import write_failed_test
-from history.results import write_results_for_run, combine_results_to_csv
+from history.results import write_results_for_run, combine_results
 from util.subprocesses import run_subprocess
 from util.utils import thread_timeout
 
@@ -84,4 +84,4 @@ def do_tests(
         thread.join(timeout=thread_timeout)
         logging.info('"%s" done', thread.name)
 
-    combine_results_to_csv(run_id)
+    combine_results(run_id)

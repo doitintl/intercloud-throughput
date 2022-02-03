@@ -12,4 +12,4 @@ if [[ -z $CLIENT_INSTANCE_IDS ]]; then
 fi
 IFS=', ' read -r -a CLIENT_INSTANCE_IDS_ARR <<< "$CLIENT_INSTANCE_IDS"
 
-aws ec2 terminate-instances --region "$REGION" --instance-ids ${CLIENT_INSTANCE_IDS_ARR}
+aws ec2 terminate-instances --region "$REGION" --instance-ids ${CLIENT_INSTANCE_IDS_ARR[*]}

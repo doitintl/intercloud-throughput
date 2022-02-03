@@ -5,21 +5,18 @@ from datetime import datetime
 from typing import List, Tuple, Dict
 
 from cloud.clouds import CloudRegion, get_region
-from history.results import load_results_csv, results_dir
+from history.results import load_past_results, results_dir
 
 
 def __attempted_tests_csv_file():
     return f"{results_dir}/attempted-tests.csv"
 
 
-def __failed_tests_csv_file():
-    return f"{results_dir}/failed-tests.csv"
-
 def without_already_succeeded(
     region_pairs: List[Tuple[CloudRegion, CloudRegion]]
 ) -> List[Tuple[CloudRegion, CloudRegion]]:
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(
-        load_results_csv()
+        load_past_results()
     )
     already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(
         __already_attempted()
@@ -28,12 +25,11 @@ def without_already_succeeded(
 
     no_redo_success = list(filter(lambda r: r not in successful_results, region_pairs))
     logging.info(
-            f"Of {len(region_pairs)} requested in this batch; "
-            f"Excluding the {len(successful_results)} successes; "
-            f"Not excluding the {len(old_failures)} failures; "
-            f"Leaving {len(no_redo_success)} pairs."
-        )
-
+        f"Of {len(region_pairs)} requested in this batch; "
+        f"Excluding the {len(successful_results)} successes; "
+        f"Not excluding the {len(old_failures)} failures; "
+        f"Leaving {len(no_redo_success)} pairs."
+    )
 
     return no_redo_success
 
@@ -51,7 +47,7 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
 
 
 def write_failed_test(src: CloudRegion, dst: CloudRegion):
-    output_filename = __failed_tests_csv_file()
+    output_filename = f"{results_dir}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
     entry = (
@@ -68,23 +64,27 @@ def write_failed_test(src: CloudRegion, dst: CloudRegion):
                 + "\n"
             )
         f.write(entry)
-        logging.info("Wrote to %s", output_filename)
+        #logging.info("Wrote to %s", output_filename)
 
 
-def write_attempted_tests(region_pairs: List[Tuple[CloudRegion, CloudRegion]]):
+def write_attempted_tests(region_pairs_about_to_try: List[Tuple[CloudRegion, CloudRegion]]):
     attempts = __already_attempted()
-    for pair in region_pairs:
+    for pair in region_pairs_about_to_try:
         attempts.append(
             {
+                "timestamp": datetime.now().isoformat(),
                 "from_cloud": pair[0].cloud,
                 "from_region": pair[0].region_id,
                 "to_cloud": pair[1].cloud,
                 "to_region": pair[1].region_id,
             }
         )
-    with open(__attempted_tests_csv_file(), "w") as f:
+
+    if attempts:
+     keys=list(attempts[0].keys())
+     with open(__attempted_tests_csv_file(), "w") as f:
         dict_writer = csv.DictWriter(
-            f, ["from_cloud", "from_region", "to_cloud", "to_region"]
+            f, keys
         )
         dict_writer.writeheader()
         dict_writer.writerows(attempts)

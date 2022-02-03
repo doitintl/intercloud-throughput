@@ -22,17 +22,16 @@ class Cloud(Enum):
     def __str__(self):
         return self.name
 
+__PRIVATE__INIT__=object()
 
 @total_ordering
 class CloudRegion:
     def __init__(
-        self, cloud: Cloud, region_id: str, lat: float = None, long: float = None
+        self, private_init, cloud: Cloud, region_id: str, lat: float = None, long: float = None
     ):
-        curframe = inspect.currentframe()
-        calframe = inspect.getouterframes(curframe, 2)
-        assert (
-            calframe[1][3] == "get_regions"
-        ), "Call this only in building the regions list"
+        if private_init is not __PRIVATE__INIT__:
+            raise ValueError("Call get_region() instead of  CloudRegion, which is kept \"private\" so that a cache can be built.")
+
         assert isinstance(cloud, Cloud), type(cloud)
         assert re.match(r"[a-z][a-z-]+\d$", region_id)
 
@@ -98,7 +97,7 @@ def get_regions() -> List[CloudRegion]:
 
             cloud_s = row["cloud"]
 
-            __regions.append(CloudRegion(Cloud(cloud_s), row["region"], lat, long))
+            __regions.append(CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), row["region"], lat, long))
         fp.close()
     return __regions
 

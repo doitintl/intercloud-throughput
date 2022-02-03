@@ -9,13 +9,15 @@ from typing import List, Dict, Tuple
 from cloud.clouds import CloudRegion
 from util.utils import set_cwd
 
+perftest_resultsdir_envvar = "PERFTEST_RESULTSDIR"
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
 
-results_dir = os.environ.get("PERFTEST_RESULTSDIR", "./results")
+results_dir = os.environ.get(perftest_resultsdir_envvar, "./results")
 try:
     os.mkdir(results_dir)
 except FileExistsError:
@@ -28,7 +30,7 @@ def __results_dir_for_run(run_id):
     return f"./result-files-one-run/results-{run_id}"
 
 
-def __results_csv():
+def __results_file():
     return f"{results_dir}/results.csv"
 
 
@@ -51,7 +53,7 @@ def write_results_for_run(
         logging.info("Wrote %s", results_for_one_run_file)
 
 
-def load_results_csv() -> List[Dict]:
+def load_past_results() -> List[Dict]:
     def parse_nums(r):
         ret = {}
         for k, v in r.items():
@@ -75,12 +77,12 @@ def load_results_csv() -> List[Dict]:
 
     try:
 
-        with open(__results_csv()) as f1:
+        with open(__results_file()) as f1:
             contents = f1.read()
             contents = contents.strip()
             if not contents:
                 return []  # deal with empty file
-        with open(__results_csv()) as f:
+        with open(__results_file()) as f:
 
             reader = csv.reader(f, skipinitialspace=True)
             header = next(reader)
@@ -90,45 +92,58 @@ def load_results_csv() -> List[Dict]:
     except FileNotFoundError:
         return []
 
-
-def record_supernumerary_tests():
-    def record_test_count(
-        title, hdrs, region_pairs: List[Tuple[str, str, str, str]], id_: str
-    ):
+def __count_tests_per_region_pair(ascending:bool, region_pairs: List[Tuple[str, str, str, str]]
+                                  )->List[Dict[str,int]]:
         tests_per_regionpair = collections.Counter(region_pairs)
-        regionpair_items = sorted(
-            list(tests_per_regionpair.items()), key=lambda i: -i[1]
-        )
-        regionpair_strings = [
-            f"{v},{k[0]},{k[1]},{k[2]},{k[3]}" for k, v in regionpair_items
-        ]
-        s = "\n".join(regionpair_strings)
-        with open(results_dir + "/" + f"{id_}.csv", "w") as f:
-            f.write("#" + title + "\n")
-            f.write(",".join(hdrs) + "\n")
-            f.write(s)
+        items = tests_per_regionpair.items()
+        multiplier = 1 if ascending else -1
+        items=sorted(items, key=lambda i: multiplier * i[1])
+        assert not items or len(items[0]) == 2 and type(items[0][1]) == int, items[0]
 
-    dicts = load_results_csv()
+        # TODO here and elsewhere, timestamps  are at time of writing file,
+        # so that the same testrun can get different timestamps. To allow identifying
+        # a testrun, could use a timestamp from the begining of the run.
+        # But run_id also gives that
+        dicts = [{
+            "count": count,
+            "from_cloud": pair[0],
+            "from_region": pair[1],
+            "to_cloud": pair[2],
+            "to_region": pair[3]} for pair, count in items]
+        return dicts
+
+def analyze_unneeded_tests():
+    def record_test_count(region_pairs: List[Tuple[str, str, str, str]], filename: str):
+        test_counts = __count_tests_per_region_pair(False, region_pairs)
+        if not test_counts:
+            logging.info("No results found for %s. Either there are none, or you may need to check the %s env variable", filename, perftest_resultsdir_envvar)
+        else:
+             with open(results_dir + "/" + filename, "w") as f:
+                dict_writer = csv.DictWriter(f, test_counts[0].keys())
+                dict_writer.writeheader()
+                dict_writer.writerows(test_counts)
+
+    dicts = load_past_results()
     if not dicts:
-        logging.info("No previous results found")
+        logging.info("No previous results found. You may need to check the   %s env variable", perftest_resultsdir_envvar)
     else:
         by_test_pairs = [
             (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
             for d in dicts
         ]
-        hdr = ["count", "from_cloud", "from_region", "to_cloud", "to_region"]
+
         record_test_count(
-            "Tests per Region Pair", hdr, by_test_pairs, "tests-per-regionpair"
+            by_test_pairs, "tests-per-regionpair.csv"
         )
         intraregion_tests = list(
             filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
         )
         record_test_count(
-            "Intraregion tests", hdr, intraregion_tests, "intraregion_tests"
+            intraregion_tests, "intraregion-tests.csv"
         )
 
 
-def combine_results_to_csv(run_id: str):
+def combine_results(run_id: str):
     def json_to_flattened_dict(json_s: str) -> Dict:
         ret = {}
         j = json.loads(json_s)
@@ -146,15 +161,15 @@ def combine_results_to_csv(run_id: str):
         return
     else:
         filenames = os.listdir(__results_dir_for_run(run_id))
-        dicts = load_results_csv()
+        dicts = load_past_results()
 
-        record_supernumerary_tests()
+        analyze_unneeded_tests()
 
         logging.info(
             f"Adding %d new results into %d existing results in %s",
             len(filenames),
             len(dicts),
-            __results_csv(),
+            __results_file(),
         )
         if filenames:
             keys = None
@@ -170,7 +185,7 @@ def combine_results_to_csv(run_id: str):
                         ), f"All keys should be the same in the result-files-one-run jsons {set(d.keys())}!={set(keys)}"
                     dicts.append(d)
 
-            with open(__results_csv(), "w") as f:
+            with open(__results_file(), "w") as f:
                 dict_writer = csv.DictWriter(f, keys)
                 dict_writer.writeheader()
                 dict_writer.writerows(dicts)
@@ -179,4 +194,4 @@ def combine_results_to_csv(run_id: str):
 
 if __name__ == "__main__":
     set_cwd()
-    record_supernumerary_tests()
+    analyze_unneeded_tests()

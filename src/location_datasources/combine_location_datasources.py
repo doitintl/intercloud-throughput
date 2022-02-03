@@ -100,7 +100,7 @@ def data_by_region() -> Dict[tuple[str, str], List[Dict]]:
     dir_ = "./reference_data/data_sources/"
     lst = os.listdir(dir_)
     dicts = [load_csv(dir_ + f) for f in lst]
-    dicts = list(itertools.chain.from_iterable(dicts))
+    dicts = itertools.chain.from_iterable(dicts)
 
     def keyfunc(d):
         if not d.get("cloud") or not d.get("region"):
@@ -111,7 +111,7 @@ def data_by_region() -> Dict[tuple[str, str], List[Dict]]:
     grouped_ = itertools.groupby(dicts, keyfunc)
     groups = {}
     for k, g in grouped_:
-        groups[k] = list(g)  # Store group iterator as a list
+        groups[k] = list(g)  # Store group iterator as a list, for repeat access.
         pass
     return groups
 

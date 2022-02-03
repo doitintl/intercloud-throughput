@@ -55,7 +55,7 @@ def is_non_enabled_auth_aws_region(r: CloudRegion):
             "./scripts/aws-test-auth.sh",
             env={"PATH": os.environ.get("PATH"), "REGION": r.region_id},
         )
-    except ChildProcessError as cpe:
+    except ChildProcessError:
         is_enabled = False
     else:
         is_enabled = True

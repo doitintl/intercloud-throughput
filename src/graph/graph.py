@@ -9,7 +9,7 @@ from matplotlib import pyplot
 from numpy.linalg import LinAlgError
 
 from cloud.clouds import interregion_distance, get_region
-from history.results import load_results_csv, results_dir
+from history.results import load_past_results, results_dir, perftest_resultsdir_envvar
 from util.utils import set_cwd
 
 logging.basicConfig(
@@ -18,13 +18,15 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+bitrate_unit_int = 1e9
+
 
 def graph_full_testing_history():
-    results = load_results_csv()
+    results = load_past_results()
     if not results:
         raise ValueError(
-            "No results in %s; maybe set another value for PERFTEST_RESULTSDIR env variable"
-            % results_dir
+            "No results in %s; maybe set another value for %s env variable"
+            % (results_dir, perftest_resultsdir_envvar)
         )
     len_intra_and_interzone = len(results)
     # Eliminate intra-zone tests
@@ -44,16 +46,16 @@ def graph_full_testing_history():
             "Removed %d intrazone results", len(results) < len_intra_and_interzone
         )
 
-    for d in results:
-        d["distance"] = interregion_distance(
-            get_region((d["from_cloud"]), d["from_region"]),
-            get_region((d["to_cloud"]), d["to_region"]),
+    for result in results:
+        result["distance"] = interregion_distance(
+            get_region((result["from_cloud"]), result["from_region"]),
+            get_region((result["to_cloud"]), result["to_region"]),
         )
 
     results.sort(key=lambda d: d["distance"])
 
     dist = [r["distance"] for r in results]
-    bitrate = [r["bitrate_Bps"] / 1e7 for r in results]
+    bitrate = [r["bitrate_Bps"] / bitrate_unit_int for r in results]
     avg_rtt = [r["avgrtt"] for r in results]
     logging.info(
         "Distance in [%s,%s]; Bitrate in [%s,%s], RTT in [%s, %s]",
@@ -65,14 +67,17 @@ def graph_full_testing_history():
         round(max(avg_rtt), 1),
     )
 
-    # naming the x axis
+    color_for_avg_rtt = "red"
+    color_for_bitrate = "blue"
+
     plt.xlabel("distance")
-    # naming the y axis
-    plt.ylabel("seconds    |   10 Mbps")
-    plt.plot(dist, avg_rtt, color="red", label="avg rtt")
-    plt.plot(dist, bitrate, color="blue", label="bitrate")
-    __plot_linear_fit_bitrate("avg rtt", dist, avg_rtt, "#FF1493")
-    __plot_linear_fit_bitrate("bitrate", dist, bitrate, "cyan")
+    bitrate_unit_s = f"{int(bitrate_unit_int / 1e6)} Mbps"
+    plt.ylabel(f"seconds    |   {bitrate_unit_s}")
+
+    plt.plot(dist, avg_rtt, color=color_for_avg_rtt, label="avg rtt")
+    plt.plot(dist, bitrate, color=color_for_bitrate, label="bitrate")
+    __plot_linear_fit(dist, avg_rtt, color_for_avg_rtt)
+    __plot_linear_fit(dist, bitrate, "%s" % color_for_bitrate)
 
     plt.legend()
 
@@ -82,7 +87,7 @@ def graph_full_testing_history():
     chart_file = f"{results_dir}/charts/{date_s}.png"
 
     try:
-        mkdir( os.path.dirname(os.path.realpath(chart_file)))
+        mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
         pass
 
@@ -95,7 +100,7 @@ def graph_full_testing_history():
 LinAlgError_counter = 0
 
 
-def __plot_linear_fit_bitrate(lbl, dist, y, color):
+def __plot_linear_fit(dist, y, color, lbl=None):
     dist_np = np.array(dist)
     y_np = np.array(y)
     try:

@@ -1,4 +1,3 @@
-import logging
 import os
 import random
 import string
@@ -9,6 +8,7 @@ from util import subprocesses
 __gcp_default = None
 
 thread_timeout = 5 * 60
+
 
 
 def set_cwd():
@@ -40,7 +40,7 @@ def random_id():
     k = 3
     consonants = random.choices(cons, k=k)
     vowels = random.choices(vowel, k=k)
-    s = ["".join(i) for i in list(zip(consonants, vowels))]
+    s = ["".join(i) for i in zip(consonants, vowels)]
     return "".join(s)
 
 

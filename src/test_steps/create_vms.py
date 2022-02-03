@@ -38,11 +38,11 @@ def __arrange_vms_by_region(
 ) -> List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]:
     ret = []
     for pair in regions_pairs:
-        vm_info_src = region_to_vminfo.get(pair[0])
-        vm_info_dst = region_to_vminfo.get(pair[0])
-        src_region = pair[0]
-        dst_region = pair[1]
-        ret.append(((src_region, vm_info_src), (dst_region, vm_info_dst)))
+        src = pair[0]
+        dst = pair[1]
+        vm_info_src = region_to_vminfo.get(src)
+        vm_info_dst = region_to_vminfo.get(dst)
+        ret.append(((src, vm_info_src), (dst, vm_info_dst)))
     return ret
 
 
@@ -74,12 +74,11 @@ def create_vms(
         region_pairs, vm_region_and_address_infos
     )
 
-    ret = __filter_regions_with_no_vms(regionwithvm_pairs)
+    region_pairs_with_valid_vms = __filter_out_tests_lacking_one_or_more_vms(regionwithvm_pairs)
+    return region_pairs_with_valid_vms
 
-    return ret
 
-
-def __filter_regions_with_no_vms(
+def __filter_out_tests_lacking_one_or_more_vms(
     regionwithvm_pairs: List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]
 ) -> List[Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]]:
     missing_regions = []
@@ -90,8 +89,8 @@ def __filter_regions_with_no_vms(
     for regionwithvm_pair in regionwithvm_pairs:
         skip = False
         for i in [0, 1]:
-            if not regionwithvm_pair[i][1]:
-                missing_regions.append(regionwithvm_pair[i])
+            if   regionwithvm_pair[i][1] is None:
+                missing_regions.append(regionwithvm_pair[i][0])
                 skip = True
         if skip:
             skip_tests.append((regionwithvm_pair[0][0], regionwithvm_pair[1][0]))
@@ -100,13 +99,13 @@ def __filter_regions_with_no_vms(
 
     missing_regions = dedup(missing_regions)
     if missing_regions:
-        logging.info("Regions where no VM was successfully created %s", missing_regions)
-        logging.info(
-            "Tests to skip because VM unavailable on at least one region: %s",
+        logging.info("%d regions where no VM was successfully created %s", len(missing_regions), missing_regions)
+        logging.info("%d tests to skip because VM unavailable on at least one region: %s",
+                     len(skip_tests),
             skip_tests,
         )
         for tst in skip_tests:
             write_failed_test(*tst)
 
-    logging.info("Tests where both VMs successfully created %d", len(ret))
+    logging.info("%d tests where both VMs successfully created", len(ret))
     return ret
