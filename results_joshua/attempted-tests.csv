@@ -467,3 +467,12 @@ timestamp,from_cloud,from_region,to_cloud,to_region
 2022-02-03T20:02:59.844530Z,GCP,asia-south1,GCP,us-west2
 2022-02-03T20:02:59.844531Z,GCP,asia-south1,GCP,us-west3
 2022-02-03T20:02:59.844532Z,GCP,asia-south1,GCP,us-west4
+2022-02-04T07:51:32.708833Z,AWS,eu-central-1,GCP,asia-south2
+2022-02-04T07:51:32.708837Z,GCP,asia-south2,AWS,eu-central-1
+2022-02-04T08:04:14.056200Z,AWS,cn-north-1,AWS,us-gov-west-1
+2022-02-04T08:04:57.390658Z,AWS,cn-north-1,AWS,us-gov-west-1
+2022-02-04T08:07:17.627393Z,AWS,cn-north-1,AWS,us-gov-west-1
+2022-02-04T08:08:38.136536Z,AWS,cn-north-1,AWS,us-west-1
+2022-02-04T08:11:04.446233Z,AWS,cn-north-1,AWS,us-west-1
+2022-02-04T08:18:31.955666Z,AWS,cn-north-1,AWS,us-west-1
+2022-02-04T08:26:28.426926Z,AWS,cn-north-1,AWS,us-west-1

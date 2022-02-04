@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import shutil
-from typing import List, Dict, Tuple
 
 from cloud.clouds import CloudRegion
 from util.utils import set_cwd
@@ -53,7 +52,7 @@ def write_results_for_run(
         logging.info("Wrote %s", results_for_one_run_file)
 
 
-def load_past_results() -> List[Dict]:
+def load_past_results() -> list[dict]:
     def parse_nums(r):
         ret = {}
         for k, v in r.items():
@@ -90,59 +89,69 @@ def load_past_results() -> List[Dict]:
     except FileNotFoundError:
         return []
 
-def __count_tests_per_region_pair(ascending:bool, region_pairs: List[Tuple[str, str, str, str]]
-                                  )->List[Dict[str,int]]:
-        tests_per_regionpair = collections.Counter(region_pairs)
-        items = tests_per_regionpair.items()
-        multiplier = 1 if ascending else -1
-        items=sorted(items, key=lambda i: multiplier * i[1])
-        assert not items or len(items[0]) == 2 and type(items[0][1]) == int, items[0]
 
-        # Here and elsewhere, timestamps  are at time of writing file,
-        # so that the same testrun can get different timestamps. To allow identifying
-        # a testrun, could use a timestamp from the begining of the run.
-        # But run_id also gives that
-        dicts = [{
+def __count_tests_per_region_pair(
+    ascending: bool, region_pairs: list[tuple[str, str, str, str]]
+) -> list[dict[str, int]]:
+    tests_per_regionpair = collections.Counter(region_pairs)
+    items = tests_per_regionpair.items()
+    multiplier = 1 if ascending else -1
+    items = sorted(items, key=lambda i: multiplier * i[1])
+    assert not items or len(items[0]) == 2 and type(items[0][1]) == int, items[0]
+
+    # Here and elsewhere, timestamps  are at time of writing file,
+    # so that the same testrun can get different timestamps. To allow identifying
+    # a testrun, could use a timestamp from the begining of the run.
+    # But run_id also gives that
+    dicts = [
+        {
             "count": count,
             "from_cloud": pair[0],
             "from_region": pair[1],
             "to_cloud": pair[2],
-            "to_region": pair[3]} for pair, count in items]
-        return dicts
+            "to_region": pair[3],
+        }
+        for pair, count in items
+    ]
+    return dicts
 
-def analyze_unneeded_tests():
-    def record_test_count(region_pairs: List[Tuple[str, str, str, str]], filename: str):
+
+def analyze_failed_regions():
+    print("TODO")  # TODO
+
+
+def analyze_test_count():
+    def record_test_count(region_pairs: list[tuple[str, str, str, str]], filename: str):
         test_counts = __count_tests_per_region_pair(False, region_pairs)
         if not test_counts:
-            logging.info("No results found for %s. Either there are none, or you may need to check the %s env variable", filename, perftest_resultsdir_envvar)
+            logging.info(
+                "No results found for %s. Either there are none, or you may need to check the %s env variable",
+                filename,
+                perftest_resultsdir_envvar,
+            )
         else:
-             with open(results_dir + "/" + filename, "w") as f:
+            with open(results_dir + "/" + filename, "w") as f:
                 dict_writer = csv.DictWriter(f, test_counts[0].keys())
                 dict_writer.writeheader()
                 dict_writer.writerows(test_counts)
 
     dicts = load_past_results()
     if not dicts:
-        logging.info("No previous results found. You may need to check the   %s env variable", perftest_resultsdir_envvar)
+        logging.info(
+            "No previous results found. You may need to check the   %s env variable",
+            perftest_resultsdir_envvar,
+        )
     else:
         by_test_pairs = [
             (d["from_cloud"], d["from_region"], d["to_cloud"], d["to_region"])
             for d in dicts
         ]
 
-        record_test_count(
-            by_test_pairs, "tests-per-regionpair.csv"
-        )
-        intraregion_tests = list(
-            filter(lambda i: (i[0], i[1]) == (i[2], i[3]), by_test_pairs)
-        )
-        record_test_count(
-            intraregion_tests, "intraregion-tests.csv"
-        )
+        record_test_count(by_test_pairs, "tests-per-regionpair.csv")
 
 
 def combine_results(run_id: str):
-    def json_to_flattened_dict(json_s: str) -> Dict:
+    def json_to_flattened_dict(json_s: str) -> dict:
         ret = {}
         j = json.loads(json_s)
         for k, v in j.items():
@@ -158,11 +167,8 @@ def combine_results(run_id: str):
         logging.warning("No results at %s", __results_dir_for_run(run_id))
         return
     else:
-        filenames = os.listdir(__results_dir_for_run(run_id))
         dicts = load_past_results()
-
-        analyze_unneeded_tests()
-
+        filenames = os.listdir(__results_dir_for_run(run_id))
         logging.info(
             f"Adding %d new results into %d existing results in %s",
             len(filenames),
@@ -187,9 +193,10 @@ def combine_results(run_id: str):
                 dict_writer = csv.DictWriter(f, keys)
                 dict_writer.writeheader()
                 dict_writer.writerows(dicts)
+
     shutil.rmtree(__results_dir_for_run(run_id))
 
 
 if __name__ == "__main__":
     set_cwd()
-    analyze_unneeded_tests()
+    analyze_test_count()

@@ -2,7 +2,6 @@ import csv
 import itertools
 import os
 from statistics import median, mean, stdev, variance
-from typing import List, Dict
 
 from util.utils import set_cwd
 
@@ -32,6 +31,7 @@ def __combine():
         geoloc_data |= stat_long
         for d in data:
             geoloc_data[d["source"] + "_long"] = d["longitude"]
+        # noinspection PyUnresolvedReferences
         geoloc_data["latitude"] = geoloc_data["lat_median"]
         geoloc_data["longitude"] = geoloc_data["long_median"]
         geoloc[region_name] = geoloc_data
@@ -69,13 +69,13 @@ def __combine():
         "source",
     ]
 
-    with open("./reference_data/location_datasources.csv", "w") as f:
+    with open("./reference_data/locations.csv", "w") as f:
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(geoloc_list)
 
 
-def stats(pfx: str, vals: List[float]) -> Dict[str, float]:
+def stats(pfx: str, vals: list[float]) -> dict[str, float]:
     def variance_(lst):
         return 0 if len(lst) < 2 else variance(lst)
 
@@ -92,7 +92,7 @@ def stats(pfx: str, vals: List[float]) -> Dict[str, float]:
     return {k: round(v, 2) for k, v in d.items()}
 
 
-def data_by_region() -> Dict[tuple[str, str], List[Dict]]:
+def data_by_region() -> dict[tuple[str, str], list[dict]]:
     def load_csv(fname):
         with open(fname) as f:
             return [r for r in (csv.DictReader(filter(lambda row: row[0] != "#", f)))]

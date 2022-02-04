@@ -7,6 +7,7 @@ from os import mkdir
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import pyplot
+from matplotlib.axes import Axes
 from numpy.linalg import LinAlgError
 
 from cloud.clouds import interregion_distance, get_region
@@ -19,7 +20,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-bitrate_unit_int = 1/10
+
 
 
 def graph_full_testing_history():
@@ -56,7 +57,8 @@ def graph_full_testing_history():
     results.sort(key=lambda d: d["distance"])
 
     dist = [r["distance"] for r in results]
-    bitrate = [math.log(r["bitrate_Bps"]) / bitrate_unit_int for r in results]
+    mega=1e6
+    bitrate = [r["bitrate_Bps"] / mega for r in results]
     avg_rtt = [r["avgrtt"] for r in results]
     logging.info(
         "Distance in [%s,%s]; Bitrate in [%s,%s], RTT in [%s, %s]",
@@ -68,50 +70,72 @@ def graph_full_testing_history():
         round(max(avg_rtt), 1),
     )
 
-    color_for_avg_rtt = "red"
-    color_for_bitrate = "blue"
+    chart_file = __plot(dist, avg_rtt, bitrate)
+    logging.info("Generated chart %s", chart_file)
 
-    plt.xlabel("distance")
-    #bitrate_unit_s = f"{int(bitrate_unit_int / 1e6)} Mbps"
-    bitrate_unit_s="bps (log scale)"
-    plt.ylabel(f"seconds    |   {bitrate_unit_s}")
 
-    plt.plot(dist, avg_rtt, color=color_for_avg_rtt, label="avg rtt")
-    plt.plot(dist, bitrate, color=color_for_bitrate, label="bitrate")
+def __plot(dist, avg_rtt, bitrate):
 
-    __plot_linear_fit(dist, avg_rtt, color_for_avg_rtt)
-    __plot_linear_fit(dist, bitrate, "%s" % color_for_bitrate)
+    fig, rtt_ax = plt.subplots()
+    bitrate_ax = rtt_ax.twinx()
 
-    plt.legend()
+    plt.xlabel=("distance")
+
+    __plot_rtt(dist, avg_rtt, rtt_ax)
+    __plot_bitrate(dist, bitrate, bitrate_ax)
 
     plt.title("Distance to latency & throughput")
-
-    date_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
-    chart_file = f"{results_dir}/charts/{date_s}.png"
-
+    datetime_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+    chart_file = f"{results_dir}/charts/{datetime_s}.png"
     try:
         mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
         pass
-
     pyplot.savefig(chart_file)
-
     plt.show()
-    logging.info("Generated chart %s", chart_file)
+    return chart_file
+
+
+def __plot_rtt(dist, avg_rtt, rtt_ax):
+    color_for_avg_rtt = "red"
+    rtt_ax.set_ylabel("seconds")
+    rtt_ax.plot(dist, avg_rtt, color=color_for_avg_rtt, label="avg rtt")
+    rtt_ax.legend(loc="upper left")
+    __plot_linear_fit(rtt_ax, dist, avg_rtt, color_for_avg_rtt)
+
+def __plot_bitrate(dist, bitrate, bitrate_ax):
+    color_for_bitrate = "blue"
+    bitrate_ax.set_ylabel("Mbps")
+    semilog_plot=True
+    if semilog_plot:
+        plot_func= bitrate_ax.semilogy
+        bottom_limit=1
+    else:
+        plot_func=bitrate_ax.plot
+        bottom_limit=0
+
+    plot_func(dist, bitrate, color=color_for_bitrate, label="bitrate")
+    bitrate_ax.legend(loc="upper right")
+    #max_reasonable_bitrate = 1e10
+    #bitrate_ax.set_ylim(bottom_limit, max_reasonable_bitrate )
+    __plot_linear_fit(bitrate_ax, dist, bitrate,  color_for_bitrate, log=semilog_plot)
 
 
 LinAlgError_counter = 0
 
 
-def __plot_linear_fit(dist, y, color, lbl=None ):
+def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, log=False):
     dist_np = np.array(dist)
     y_np = np.array(y)
     try:
 
         # noinspection PyTupleAssignmentBalance
         m, b = np.polyfit(dist_np, y_np, 1)
-
-        plt.plot(
+        if log:
+            plot_func=ax.semilogy
+        else:
+            plot_func=ax.plot
+        plot_func(
             dist_np,
             m * dist_np + b,
             color=color,
@@ -122,7 +146,7 @@ def __plot_linear_fit(dist, y, color, lbl=None ):
         global LinAlgError_counter
         LinAlgError_counter += 1
         logging.warning("%s: %s and %s", lae, dist_np[:10], y_np[:10])
-        plt.text(
+        ax.text(
             2000,
             3500 - (LinAlgError_counter * 500),
             f"No linear fit to {lbl} available",

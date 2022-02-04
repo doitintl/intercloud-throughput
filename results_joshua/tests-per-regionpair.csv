@@ -251,3 +251,13 @@ count,from_cloud,from_region,to_cloud,to_region
 1,GCP,europe-north1,GCP,asia-northeast3
 1,GCP,europe-north1,GCP,asia-northeast2
 1,GCP,australia-southeast2,GCP,asia-northeast2
+1,GCP,asia-south1,GCP,us-west3
+1,GCP,asia-south1,GCP,us-west2
+1,GCP,us-west2,GCP,asia-south1
+1,GCP,us-east4,GCP,asia-south1
+1,GCP,us-west1,GCP,asia-south1
+1,GCP,asia-south1,GCP,us-west4
+1,GCP,us-west3,GCP,asia-south1
+1,GCP,us-west4,GCP,asia-south1
+1,GCP,asia-south1,GCP,us-west1
+1,GCP,asia-south1,GCP,us-east4

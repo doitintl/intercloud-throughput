@@ -1,6 +1,5 @@
 import logging
 import threading
-from typing import List
 
 from cloud.clouds import CloudRegion, Cloud
 from test_steps.create_vms import env_for_singlecloud_subprocess
@@ -8,7 +7,7 @@ from util.subprocesses import run_subprocess
 from util.utils import thread_timeout, Timer
 
 
-def delete_vms(run_id, regions: List[CloudRegion]):
+def delete_vms(run_id, regions: list[CloudRegion]):
     with Timer("delete_vms"):
         del_aws_thread = threading.Thread(
             name=f"delete-AWS", target=__delete_aws_vms, args=(run_id, regions)

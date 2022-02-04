@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import csv
-import inspect
 import logging
 import re
 from enum import Enum
 from functools import total_ordering
-from typing import Dict
-from typing import List
 
 import geopy.distance
 
@@ -23,15 +20,24 @@ class Cloud(Enum):
     def __str__(self):
         return self.name
 
-__PRIVATE__INIT__=object()
+
+__PRIVATE__INIT__ = object()
+
 
 @total_ordering
 class CloudRegion:
     def __init__(
-        self, private_init, cloud: Cloud, region_id: str, lat: float = None, long: float = None
+        self,
+        private_init,
+        cloud: Cloud,
+        region_id: str,
+        lat: float = None,
+        long: float = None,
     ):
         if private_init is not __PRIVATE__INIT__:
-            raise ValueError("Call get_region() instead of  CloudRegion, which is kept \"private\" so that a cache can be built.")
+            raise ValueError(
+                'Call get_region() instead of  CloudRegion, which is kept "private" so that a cache can be built.'
+            )
 
         assert isinstance(cloud, Cloud), type(cloud)
         assert re.match(r"[a-z][a-z-]+\d$", region_id)
@@ -51,12 +57,12 @@ class CloudRegion:
         return f"./scripts/do-one-test-from-{self.lowercase_cloud_name()}.sh"
 
     def __repr__(self):
-        return f"{self.cloud.name}-{self.region_id}"
+        return f"{self.cloud.name}.{self.region_id}"
 
     def __hash__(self):
         return hash(repr(self))
 
-    def env(self) -> Dict[str, str]:
+    def env(self) -> dict[str, str]:
         envs = {
             Cloud.GCP: {"PROJECT_ID": gcp_default_project()},
             Cloud.AWS: {"BASE_KEYNAME": basename_key_for_aws_ssh},
@@ -74,12 +80,11 @@ class CloudRegion:
         return self.region_id == other.region_id and self.cloud == other.cloud
 
 
-__regions: List[CloudRegion]
+__regions: list[CloudRegion]
 __regions = []
 
 
-def get_regions() -> List[CloudRegion]:
-
+def get_regions() -> list[CloudRegion]:
     global __regions
 
     if not __regions:
@@ -99,11 +104,14 @@ def get_regions() -> List[CloudRegion]:
             cloud_s = row["cloud"]
 
             region_id = row["region"]
-            if region_id=="eu-central-1":#TODO figure out why!
-                logging.info("Excluding %s until we can figure out why SSH login is impossible", region_id
-                            )
-            __regions.append(CloudRegion(__PRIVATE__INIT__,
-                                         Cloud(cloud_s), region_id, lat, long))
+            # if region_id == "eu-central-1":  # TODO figure out why!
+            #     logging.info(
+            #         "Excluding %s until we can figure out why SSH login is impossible",
+            #         region_id,
+            #     )
+            __regions.append(
+                CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
+            )
         fp.close()
     return __regions
 
@@ -119,7 +127,7 @@ def get_region(
     matches = [r for r in regions if r.cloud == cloud and r.region_id == region_id]
     if not matches:
         print(f"{cloud}")
-        raise ValueError(f"Cannot find region {cloud}{region_id}")
+        raise ValueError(f"Cannot find region {cloud}.{region_id}")
     else:
         assert len(matches) == 1, matches
         ret = matches[0]

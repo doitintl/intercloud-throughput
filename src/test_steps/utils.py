@@ -1,5 +1,4 @@
 import os
-from typing import List, Tuple
 
 from cloud.clouds import CloudRegion
 
@@ -13,8 +12,8 @@ def env_for_singlecloud_subprocess(run_id, cloud_region):
 
 
 def unique_regions(
-    region_pairs: List[Tuple[CloudRegion, CloudRegion]]
-) -> List[CloudRegion]:
+    region_pairs: list[tuple[CloudRegion, CloudRegion]]
+) -> list[CloudRegion]:
     ret = []
     for p in region_pairs:
         for i in [0, 1]:

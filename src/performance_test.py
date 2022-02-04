@@ -1,11 +1,10 @@
 import argparse
 import collections
-import datetime
 import itertools
 import logging
 import math
 from itertools import product
-from typing import List, Tuple, Optional, Dict, Callable
+from typing import Optional, Callable
 
 from cloud.aws_regions_enabled import is_non_enabled_auth_aws_region
 from cloud.clouds import (
@@ -24,7 +23,7 @@ from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
 from test_steps.do_test import do_tests
 from test_steps.utils import unique_regions
-from util.utils import set_cwd, random_id, chunks, Timer
+from util.utils import set_cwd, random_id, chunks, Timer, date_s
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,10 +33,9 @@ logging.basicConfig(
 
 
 def __setup_and_tests_and_teardown(
-    run_id: str, region_pairs: List[Tuple[CloudRegion, CloudRegion]]
+    run_id: str, region_pairs: list[tuple[CloudRegion, CloudRegion]]
 ):
-    # Because we launch VMs and runs tests multithreaded, if one launch fails or one tests fails, running tests will not raise  an Exception.
-    # So, VMs will still be cleaned up
+    # VMs will still be cleaned up if launch or tests fail
 
     vm_region_and_address_infos = create_vms(region_pairs, run_id)
     logging.info(vm_region_and_address_infos)
@@ -45,7 +43,7 @@ def __setup_and_tests_and_teardown(
     delete_vms(run_id, unique_regions(region_pairs))
 
 
-def test_batch(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
+def test_batch(region_pairs: list[tuple[CloudRegion, CloudRegion]], run_id):
     write_attempted_tests(region_pairs)
     logging.info("Will test %s", region_pairs)
 
@@ -54,7 +52,7 @@ def test_batch(region_pairs: List[Tuple[CloudRegion, CloudRegion]], run_id):
 
 def __parse_region_pairs(
     region_pairs: str,
-) -> Optional[List[Tuple[CloudRegion, CloudRegion]]]:
+) -> Optional[list[tuple[CloudRegion, CloudRegion]]]:
     if not region_pairs:
         return None
 
@@ -64,18 +62,20 @@ def __parse_region_pairs(
             raise ValueError(f"{s} is not a dot-separated cloud-region string")
         return get_region(*cloud_and_region)
 
-    pairs_s: List[str] = region_pairs.split(";")
-    test_pairs: List[List[str]] = [p.split(",") for p in pairs_s]
+    pairs_s: list[str] = region_pairs.split(";")
+    test_pairs: list[list[str]] = [p.split(",") for p in pairs_s]
     if not all(len(pair) == 2 for pair in test_pairs):
-        raise ValueError(f"{pairs_s} is not comma-separated cloud-region pairs, each pair semi-colon-separated")
+        raise ValueError(
+            f"{pairs_s} is not comma-separated cloud-region pairs, each pair semi-colon-separated"
+        )
     pairs_regions = [(parse_region(p[0]), parse_region(p[1])) for p in test_pairs]
     return pairs_regions
 
 
-def __ascending_freq_keyfunc() -> Callable[[CloudRegion], Tuple[int, CloudRegion]]:
+def __ascending_freq_keyfunc() -> Callable[[CloudRegion], tuple[int, CloudRegion]]:
     """:return a function that will allow sorting in ascending order of freq of appearance
     of a CloudRegion in post runs, with the name of the CloudRegion as a tiebreaker"""
-    results: List[Dict] = load_past_results()
+    results: list[dict] = load_past_results()
     regions_from_results_src = [
         (get_region(d["from_cloud"], d["from_region"])) for d in results
     ]
@@ -89,7 +89,7 @@ def __ascending_freq_keyfunc() -> Callable[[CloudRegion], Tuple[int, CloudRegion
 
     counts = collections.Counter(regions_from_results)
 
-    def key_func(region: CloudRegion) -> Tuple[int, CloudRegion]:
+    def key_func(region: CloudRegion) -> tuple[int, CloudRegion]:
         return counts[region], region  # 'region' here is  tiebreaker
 
     return key_func
@@ -99,8 +99,8 @@ def __batches_of_tests(
     regions_per_batch: int,
     max_batches: int,
     one_cloud: Cloud,
-    preselected_region_pairs: List[Tuple[CloudRegion, CloudRegion]],
-) -> List[List[Tuple[CloudRegion, CloudRegion]]]:
+    preselected_region_pairs: list[tuple[CloudRegion, CloudRegion]],
+) -> list[list[tuple[CloudRegion, CloudRegion]]]:
     if preselected_region_pairs:
         batches_of_tests = [preselected_region_pairs]
     else:
@@ -117,13 +117,13 @@ def __batches_of_tests(
         regions = __sort_regions(regions)
         batches_of_regions = list(chunks(regions, regions_per_batch))
 
-        batches_of_tests: List[List[Tuple[CloudRegion, CloudRegion]]]
+        batches_of_tests: list[list[tuple[CloudRegion, CloudRegion]]]
         while True:
             if max_batches < math.inf:
                 batches_of_regions_trunc = batches_of_regions[:max_batches]
             else:
                 batches_of_regions_trunc = batches_of_regions
-            batches_of_tests: List[List[Tuple[CloudRegion, CloudRegion]]]
+            batches_of_tests: list[list[tuple[CloudRegion, CloudRegion]]]
             batches_of_tests = __make_test_batches(batches_of_regions_trunc)
 
             # If no tests are built this way, because all possibilities in these regions have been done,
@@ -191,7 +191,7 @@ def __num_tests(batches_of_tests):
     return sum(len(b) for b in batches_of_tests)
 
 
-def __make_test_batches(batches_of_regions: List[List[CloudRegion]]):
+def __make_test_batches(batches_of_regions: list[list[CloudRegion]]):
     batches_of_tests = []
     for b in batches_of_regions:
         crossproduct_regionpairs = list(filter(lambda p: p[0] != p[1], product(b, b)))
@@ -246,15 +246,14 @@ def __command_line_args():
         default=None,
         help='"GCP" or "AWS" means ignore tests that use a different cloud. '
         'Default (None) means "Don\'t ignore any clouds."'
-             "Parameter is only  used if --region_pairs is not use7d.",
+        "Parameter is only  used if --region_pairs is not use7d.",
     )
     args = parser.parse_args()
     return args
 
 
 def main():
-    logging.info("Started at %s", datetime.datetime.utcnow().isoformat()+'Z')
-
+    logging.info("Started at %s", date_s())
     args = __command_line_args()
     batches = __batches_of_tests(
         args.batch_size,
@@ -276,7 +275,6 @@ def main():
 
 
 if __name__ == "__main__":
-
     with Timer("Full run"):
-     set_cwd()
-     main()
+        set_cwd()
+        main()

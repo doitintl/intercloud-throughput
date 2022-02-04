@@ -1,15 +1,14 @@
+import datetime
 import logging
 import os
 import random
 import string
-from typing import List
-
+from time import time
 from util import subprocesses
 
 __gcp_default = None
 
 thread_timeout = 5 * 60
-
 
 
 def set_cwd():
@@ -29,7 +28,7 @@ def set_cwd():
     _new_cwd = os.getcwd()
 
 
-def chunks(lst: List, n: int):
+def chunks(lst: list, n: int):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
@@ -61,16 +60,21 @@ def dedup(seq):
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
-from time import time
 
 
 class Timer(object):
     def __init__(self, description):
         self.description = description
+
     def __enter__(self):
         self.start = time()
-    def __exit__(self, type, value, traceback):
+
+    def __exit__(self, type_, value, traceback):
         self.end = time()
-        logging.info (f"Timer {self.description}: {round(self.end - self.start,1)} seconds")
+        logging.info(
+            f"Timer {self.description}: {round(self.end - self.start, 1)} seconds"
+        )
 
 
+def date_s():
+    return datetime.datetime.utcnow().isoformat() + 'Z'

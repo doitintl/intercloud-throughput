@@ -2,17 +2,22 @@ import json
 import logging
 import os
 import threading
-from typing import List, Tuple, Dict
 
 from cloud.clouds import CloudRegion, Cloud, basename_key_for_aws_ssh
 from history.attempted import write_failed_test
-from history.results import write_results_for_run, combine_results
+from history.results import (
+    write_results_for_run,
+    combine_results,
+    analyze_test_count,
+    analyze_failed_regions,
+)
+from test_steps.create_vms import find_regions_lacking_a_vm
 from util.subprocesses import run_subprocess
 from util.utils import thread_timeout, Timer
 
 
 def __do_test(
-    run_id, src_dest: Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]
+    run_id, src_dest: tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
 ):
     src, dst = src_dest
     src_region_, src_addr_infos = src
@@ -56,7 +61,11 @@ def __do_test(
             process_stdout = run_subprocess(script, env)
 
             logging.info(
-                "Test %s result from %s to %s is %s", run_id, src[0], dst[0], process_stdout
+                "Test %s result from %s to %s is %s",
+                run_id,
+                src[0],
+                dst[0],
+                process_stdout,
             )
             test_result = process_stdout + "\n"
             result_j = json.loads(test_result)
@@ -70,16 +79,26 @@ def __do_test(
 
 def do_tests(
     run_id: str,
-    region_with_vminfo_pairs: List[
-        Tuple[Tuple[CloudRegion, Dict], Tuple[CloudRegion, Dict]]
+    region_with_vminfo_pairs: list[
+        tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
     ],
 ):
     with Timer("do_tests"):
+        (
+            region_pairs_with_valid_vms,
+            region_pairs_missing_a_vm,
+        ) = find_regions_lacking_a_vm(region_with_vminfo_pairs)
+        for fail_before_start in region_pairs_missing_a_vm:
+            src_,dst_=fail_before_start[0][0], fail_before_start[1][0]
+            logging.error("Failed because or more VMs was unavailable: Test %s,%s", src_, dst_)
+            write_failed_test(src_, dst_)
+
         threads = []
 
-        for p in region_with_vminfo_pairs:
-            src = p[0][0]
-            dest = p[1][0]
+        p: tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
+        for p in region_pairs_with_valid_vms:
+            src, dest = p[0][0], p[1][0]
+            assert all(p[i][1] for i in [0, 1]), "Should have vm info for each %s" % p
             thread_name = f"{src}-{dest}"
             logging.info(f"Will run test %s", thread_name)
             thread = threading.Thread(
@@ -93,3 +112,5 @@ def do_tests(
             logging.info('Test "%s" done', thread.name)
 
         combine_results(run_id)
+        analyze_test_count()
+        analyze_failed_regions()
