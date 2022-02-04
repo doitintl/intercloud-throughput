@@ -104,11 +104,11 @@ def get_regions() -> list[CloudRegion]:
             cloud_s = row["cloud"]
 
             region_id = row["region"]
-            # if region_id == "eu-central-1":  # TODO figure out why!
-            #     logging.info(
-            #         "Excluding %s until we can figure out why SSH login is impossible",
-            #         region_id,
-            #     )
+            if region_id == "eu-central-1":  # TODO figure out why!
+                 logging.info(
+                     "Excluding %s until we can figure out why SSH login does not work",
+                     region_id,
+                 )
             __regions.append(
                 CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
             )
