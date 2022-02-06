@@ -3,7 +3,7 @@ import threading
 from typing import Optional
 
 from cloud.clouds import CloudRegion
-from history.attempted import write_failed_test, write_missing_regions
+from history.attempted import write_missing_regions
 from test_steps.utils import env_for_singlecloud_subprocess, unique_regions
 from util.subprocesses import run_subprocess
 from util.utils import dedup, thread_timeout, Timer
@@ -90,7 +90,9 @@ def find_regions_lacking_a_vm(
     missing_regions = []
 
     both_vms_exist: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]
-    missing_one_or_more_vms: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]
+    missing_one_or_more_vms: list[
+        tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
+    ]
     both_vms_exist = []
     missing_one_or_more_vms = []
     for regionwithvm_pair in regionwithvm_pairs:
@@ -112,8 +114,6 @@ def find_regions_lacking_a_vm(
             missing_regions,
         )
         write_missing_regions(*missing_regions)
-
-
 
     logging.info("%d tests where both VMs successfully created", len(both_vms_exist))
     return both_vms_exist, missing_one_or_more_vms

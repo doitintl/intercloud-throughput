@@ -1,16 +1,19 @@
 import logging
-import math
 import os
+import subprocess
 from datetime import datetime
+from math import log2
 from os import mkdir
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 from numpy.linalg import LinAlgError
+from scipy.stats import pearsonr
 
-from cloud.clouds import interregion_distance, get_region
+from cloud.clouds import interregion_distance, get_region, Cloud
 from history.results import load_past_results, results_dir, perftest_resultsdir_envvar
 from util.utils import set_cwd
 
@@ -20,7 +23,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-
+mega = 1e6
 
 
 def graph_full_testing_history():
@@ -32,7 +35,7 @@ def graph_full_testing_history():
         )
     len_intra_and_interzone = len(results)
     # Eliminate intra-zone tests
-    ___results = list(
+    results = list(
         filter(
             lambda d: (
                 (d["from_cloud"], d["from_region"]) != (d["to_cloud"], d["to_region"])
@@ -56,85 +59,159 @@ def graph_full_testing_history():
 
     results.sort(key=lambda d: d["distance"])
 
-    dist = [r["distance"] for r in results]
-    mega=1e6
-    bitrate = [r["bitrate_Bps"] / mega for r in results]
-    avg_rtt = [r["avgrtt"] for r in results]
-    logging.info(
-        "Distance in [%s,%s]; Bitrate in [%s,%s], RTT in [%s, %s]",
-        round(min(dist), 1),
-        round(max(dist), 1),
-        round(min(bitrate), 1),
-        round(max(bitrate), 1),
-        round(min(avg_rtt), 1),
-        round(max(avg_rtt), 1),
-    )
+    clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]] = {}
+    clouddata[None] = __statistics(results)
+    s = ""
+    for from_cloud in Cloud:
+        for to_cloud in Cloud:
+            cloudpair_results = [
+                r
+                for r in results
+                if (from_cloud.name, to_cloud.name) == (r["from_cloud"], r["to_cloud"])
+            ]
+            s += "\t%s,%s has %d results\n" % (
+                from_cloud,
+                to_cloud,
+                len(cloudpair_results),
+            )
 
-    chart_file = __plot(dist, avg_rtt, bitrate)
-    logging.info("Generated chart %s", chart_file)
+            clouddata[(from_cloud, to_cloud)] = __statistics(cloudpair_results)
+    logging.info("Test distribution:\n" + s)
+    __plot(clouddata)
 
 
-def __plot(dist, avg_rtt, bitrate):
+def __statistics(results):
+    def avgrtts(results):
+        return [r["avgrtt"] for r in results]
 
-    fig, rtt_ax = plt.subplots()
-    bitrate_ax = rtt_ax.twinx()
+    def bitrates(results):
+        return [r["bitrate_Bps"] / mega for r in results]
 
-    plt.xlabel=("distance")
+    def distances(results):
+        return [r["distance"] for r in results]
 
-    __plot_rtt(dist, avg_rtt, rtt_ax)
-    __plot_bitrate(dist, bitrate, bitrate_ax)
+    return {
+        "distance": distances(results),
+        "bitrate_Bps": bitrates(results),
+        "avgrtt": avgrtts(results),
+    }
 
-    plt.title("Distance to latency & throughput")
+
+def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
+
     datetime_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
-    chart_file = f"{results_dir}/charts/{datetime_s}.png"
+    subdir = os.path.abspath(f"{results_dir}/charts/{datetime_s}")
+    logging.info("Generating charts in %s", subdir)
+    try:
+        os.mkdir(subdir)
+    except FileExistsError:
+        pass
+
+    for i, (cloudpair, data) in enumerate(clouddata.items()):
+        __plot_figure(i, cloudpair, clouddata, subdir)
+
+    subprocess.call(["open", subdir])
+
+
+def __plot_figure(count, cloudpair, clouddata, subdir):
+    dist: list[float] = clouddata[cloudpair]["distance"]
+    avg_rtt: list[float] = clouddata[cloudpair]["avgrtt"]
+    if True:bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
+
+    plt.figure(count)
+    fig, base_ax = plt.subplots()
+    rtt_ax = base_ax
+    bitrate_ax = base_ax.twinx()
+
+    plt.xlabel = "distance"
+
+    __plot_series(
+        cloudpair,
+        f"avg rtt",
+        dist,
+        avg_rtt,
+        rtt_ax,
+        "upper left",
+        "red",
+        "seconds",
+        0,
+        300,
+        False,
+    )
+    __plot_series(
+        cloudpair,
+        f"bitrate",
+        dist,
+        bitrate,
+        bitrate_ax,
+        "upper right",
+        "blue",
+        "Mbps",
+        1,
+        3000,
+        True,
+    )
+    plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
+    chart_file = f"{subdir}/{__cloudpair_s(cloudpair)}.png"
     try:
         mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
         pass
     pyplot.savefig(chart_file)
+
     plt.show()
-    return chart_file
 
 
-def __plot_rtt(dist, avg_rtt, rtt_ax):
-    color_for_avg_rtt = "red"
-    rtt_ax.set_ylabel("seconds")
-    rtt_ax.plot(dist, avg_rtt, color=color_for_avg_rtt, label="avg rtt")
-    rtt_ax.legend(loc="upper left")
-    __plot_linear_fit(rtt_ax, dist, avg_rtt, color_for_avg_rtt)
+def __cloudpair_s(cloudpair):
+    return "All Data" if cloudpair is None else f"{cloudpair[0]}-{cloudpair[1]}"
 
-def __plot_bitrate(dist, bitrate, bitrate_ax):
-    color_for_bitrate = "blue"
-    bitrate_ax.set_ylabel("Mbps")
-    semilog_plot=True
-    if semilog_plot:
-        plot_func= bitrate_ax.semilogy
-        bottom_limit=1
+
+def __plot_series(
+    cloudpair: tuple[Cloud, Cloud],
+    series_name: str,
+    x: list,
+    y: list,
+    axis,
+    loc: str,
+    color: str,
+    unit: str,
+        bottom:int,
+        top:int,
+    logarithm: bool,
+):
+    if logarithm:
+        plot_func = axis.semilogy
+        ylabel = f"{unit} (log)"
+        corr, _ = pearsonr(x, [log2(i) for i in y])
     else:
-        plot_func=bitrate_ax.plot
-        bottom_limit=0
+        plot_func = axis.plot
+        ylabel = unit
+        corr, _ = pearsonr(x, y)
+    axis.set_ylabel(ylabel)
 
-    plot_func(dist, bitrate, color=color_for_bitrate, label="bitrate")
-    bitrate_ax.legend(loc="upper right")
-    #max_reasonable_bitrate = 1e10
-    #bitrate_ax.set_ylim(bottom_limit, max_reasonable_bitrate )
-    __plot_linear_fit(bitrate_ax, dist, bitrate,  color_for_bitrate, log=semilog_plot)
+    plt.xlim(0,18000)# 20000 is  half the circumf of earth
+    axis.set_ylim(bottom,top)
+    plot_func(x, y, color=color, label=f"{series_name}\n(r={round(corr, 2)})")
+    axis.legend(loc=loc)
+
+    #__plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=logarithm)
 
 
 LinAlgError_counter = 0
 
 
-def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, log=False):
+def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, logarithm=False):
     dist_np = np.array(dist)
     y_np = np.array(y)
     try:
 
         # noinspection PyTupleAssignmentBalance
         m, b = np.polyfit(dist_np, y_np, 1)
-        if log:
-            plot_func=ax.semilogy
+        logging.info("For %s, slope is %f and intercept is %f", lbl, m, b)
+        if logarithm:
+            plot_func = ax.semilogy
         else:
-            plot_func=ax.plot
+            plot_func = ax.plot
         plot_func(
             dist_np,
             m * dist_np + b,

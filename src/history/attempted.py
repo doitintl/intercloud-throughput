@@ -1,7 +1,6 @@
 import csv
 import logging
 import os.path
-from datetime import datetime
 
 from cloud.clouds import CloudRegion, get_region
 from history.results import load_past_results, results_dir
@@ -60,14 +59,10 @@ def write_missing_regions(*missing_regions: list[CloudRegion]):
 
 
 def write_failed_test(src: CloudRegion, dst: CloudRegion):
-
     output_filename = f"{results_dir}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
-    entry = (
-        f"{date_s()},{src.cloud},{src.region_id},"
-        f"{dst.cloud},{dst.region_id}\n"
-    )
+    entry = f"{date_s()},{src.cloud},{src.region_id}," f"{dst.cloud},{dst.region_id}\n"
 
     with open(output_filename, "a") as f:
         if write_hdr:

@@ -89,8 +89,10 @@ def do_tests(
             region_pairs_missing_a_vm,
         ) = find_regions_lacking_a_vm(region_with_vminfo_pairs)
         for fail_before_start in region_pairs_missing_a_vm:
-            src_,dst_=fail_before_start[0][0], fail_before_start[1][0]
-            logging.error("Failed because or more VMs was unavailable: Test %s,%s", src_, dst_)
+            src_, dst_ = fail_before_start[0][0], fail_before_start[1][0]
+            logging.error(
+                "Failed because or more VMs was unavailable: Test %s,%s", src_, dst_
+            )
             write_failed_test(src_, dst_)
 
         threads = []

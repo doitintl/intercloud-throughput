@@ -3,6 +3,7 @@ import itertools
 import os
 from statistics import median, mean, stdev, variance
 
+from location_datasources import yugabyte, sunshower, geoloc
 from util.utils import set_cwd
 
 
@@ -118,9 +119,9 @@ def data_by_region() -> dict[tuple[str, str], list[dict]]:
 
 def main():
     set_cwd()
-    # geoloc.preprocess()
-    # sunshower.preprocess()
-    # yugabyte.preprocess()
+    geoloc.preprocess()
+    sunshower.preprocess()
+    yugabyte.preprocess()
     set_cwd()
     __combine()
 

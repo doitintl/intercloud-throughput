@@ -42,7 +42,7 @@ def __add_to_cache(r: str, is_supported: bool):
         json.dump(__cache_, f, indent=2)
 
 
-def is_non_enabled_auth_aws_region(r: CloudRegion):
+def is_nonenabled_auth_aws_region(r: CloudRegion):
     if r.cloud != Cloud.AWS:
         return False
 

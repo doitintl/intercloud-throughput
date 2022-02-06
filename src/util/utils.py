@@ -1,9 +1,12 @@
 import datetime
 import logging
+import math
 import os
 import random
 import string
 from time import time
+from typing import Union
+
 from util import subprocesses
 
 __gcp_default = None
@@ -30,8 +33,12 @@ def set_cwd():
 
 def chunks(lst: list, n: int):
     """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
+    if n == math.inf:
+        # One chunk
+        yield lst
+    else:
+        for i in range(0, len(lst), n):
+            yield lst[i : i + n]
 
 
 def random_id():
@@ -61,7 +68,6 @@ def dedup(seq):
     return [x for x in seq if not (x in seen or seen_add(x))]
 
 
-
 class Timer(object):
     def __init__(self, description):
         self.description = description
@@ -77,4 +83,11 @@ class Timer(object):
 
 
 def date_s():
-    return datetime.datetime.utcnow().isoformat() + 'Z'
+    return datetime.datetime.utcnow().isoformat() + "Z"
+
+
+def parse_infinity(a:str)->Union[int, float]:
+    if a == "inf" or a==math.inf:
+        return math.inf
+    else:
+        return int(a)
