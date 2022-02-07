@@ -232,7 +232,7 @@ def __command_line_args():
         "--batch_size",
         type=int,
         default=default_batch_sz,
-        help="Limts the  number of regions to be tested simultaneously (in each batch). "
+        help="Limits the  number of regions to be tested simultaneously (i.e.,in each batch). "
         "\nEach cross-product combination will be tested with both directions of source/destination "
         "(but without intra-region (self-to-self) pairs). "
         "\nThus, there will be (batch_size * (batch_size-1))  tests in total."
@@ -275,14 +275,14 @@ def __command_line_args():
         "--min_distance",
         type=int,
         default=default_min_distance,
-        help="\nMinimum distance between any two datacenters."
+        help="\nMinimum distance in km between source and destination for a test."
         "\nThe parameter is ignored if --region_pairs is used.",
     )
     parser.add_argument(
         "--max_distance",
         type=int,
         default=default_max_distance,
-        help="\nMaximum distance between any two datacenters."
+        help="\nMaximum distance in km between source and destination for a test."
         "\nThe parameter is ignored if --region_pairs is used.",
     )
 
