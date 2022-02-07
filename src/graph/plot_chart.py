@@ -5,7 +5,6 @@ from datetime import datetime
 from math import log2
 from os import mkdir
 from pathlib import Path
-from sys import platform
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -83,19 +82,13 @@ def graph_full_testing_history():
 
 
 def __statistics(results):
-    def avgrtts(results):
-        return [r["avgrtt"] for r in results]
-
-    def bitrates(results):
-        return [r["bitrate_Bps"] / mega for r in results]
-
-    def distances(results):
-        return [r["distance"] for r in results]
+    def extract(key):
+        return [r[key] for r in results]
 
     return {
-        "distance": distances(results),
-        "bitrate_Bps": bitrates(results),
-        "avgrtt": avgrtts(results),
+        "distance": extract("distance"),
+        "bitrate_Bps": [r / mega for r in extract("bitrate_Bps")],
+        "avgrtt": extract("avgrtt"),
     }
 
 
@@ -139,9 +132,8 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         "red",
         unit="seconds",
         bottom=0,
-        top=600,
+        top=300,
         semilogy=False,
-        clean_nearzeros=False,
     )
     __plot_series(
         cloudpair,
@@ -155,7 +147,7 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         bottom=1,
         top=3000,
         semilogy=True,
-        clean_nearzeros=False,
+
     )
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
     chart_file = f"{subdir}/{__cloudpair_s(cloudpair)}.png"
@@ -184,11 +176,7 @@ def __plot_series(
     bottom: int,
     top: int,
     semilogy: bool,
-    clean_nearzeros: bool,
 ):
-
-    if clean_nearzeros:
-        x, y = __clean_extreme_low_outliers(x, y)
 
     if semilogy:
         axis.set_yscale("log")
@@ -213,26 +201,15 @@ def __plot_series(
     )
     axis.legend(loc=loc)
 
-    __plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=semilogy)
+    #__plot_linear_fit(axis, x, y, color, lbl=series_name, semilogy=semilogy)
 
 
-def __clean_extreme_low_outliers(x, y):
-    x_cleaned = []
-    y_cleaned = []
-    extreme_low_outliers = max(y) / 1000
-    for i in range(len(x)):
-        if y[i] > extreme_low_outliers:
-            x_cleaned.append(x[i])
-            y_cleaned.append(y[i])
-    x = x_cleaned
-    y = y_cleaned
-    return x, y
 
 
 LinAlgError_counter = 0
 
 
-def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, logarithm=False):
+def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, semilogy=False):
     dist_np = np.array(dist)
     y_np = np.array(y)
     try:
@@ -242,7 +219,7 @@ def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, logarithm=False):
         m, b = returned[0]
 
         logging.info("For %s, slope is %f and intercept is %f", lbl, m, b)
-        if logarithm:
+        if semilogy:
             plot_func = ax.semilogy
         else:
             plot_func = ax.plot

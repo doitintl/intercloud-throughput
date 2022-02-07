@@ -37,11 +37,12 @@ single cloud.
         * Intraregion tests, where the source and destination were the same region, are omitted.
 * 
 * Options 
-    * You can limit the number of regions tested in a "batch"  (in parallel).
-    * You can limit the number of such batches.
-    * You can specify which cloud-pairs should be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP).
-    * Or you can specify exactly which region-pairs to test (source and destination, each can be AWS or GCP).
-    * You can run this repeatedly, accumulating more data in `results.csv`.
+    * You can specify exactly which region-pairs to test (source and destination, each can be AWS or GCP).
+    * Other options limit the regions-pairs that may be tested, but do not specify the exact list.
+    You can run this repeatedly, accumulating more data in `results.csv`.
+      * You can limit the number of regions tested in a "batch"  (in parallel).
+      * You can limit the number of such batches.
+      * You can limit which cloud-pairs can be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP)
 
 ## Output
 

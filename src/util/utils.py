@@ -52,14 +52,14 @@ def random_id():
     return "".join(s)
 
 
-lock = Lock()
+__gcp_default_project_lock = Lock()
 
 
 def gcp_default_project():
 
     global __gcp_default
     if not __gcp_default:
-        lock.acquire()
+        __gcp_default_project_lock.acquire()
         try:
             if not __gcp_default:
                 env = {"PATH": os.environ["PATH"]}
@@ -69,7 +69,7 @@ def gcp_default_project():
                 if __gcp_default.endswith("\n"):  # It does have this \n
                     __gcp_default = __gcp_default[:-1]
         finally:
-            lock.release()
+            __gcp_default_project_lock.release()
     return __gcp_default
 
 

@@ -12,4 +12,6 @@ if [[ -z $CLIENT_INSTANCE_IDS ]]; then
 fi
 IFS=', ' read -r -a CLIENT_INSTANCE_IDS_ARR <<< "$CLIENT_INSTANCE_IDS"
 
+# shellcheck disable=SC2086
+# Array is  split on purpose in next line.
 aws ec2 terminate-instances --region "$REGION" --instance-ids ${CLIENT_INSTANCE_IDS_ARR[*]}

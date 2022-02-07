@@ -9,7 +9,7 @@ from util.utils import set_cwd
 
 def __combine():
     groups = data_by_region()
-    geoloc = {}
+    geolocations = {}
     for region_name, data in groups.items():
 
         lats = [float(d["latitude"]) for d in data]
@@ -35,9 +35,9 @@ def __combine():
         # noinspection PyUnresolvedReferences
         geoloc_data["latitude"] = geoloc_data["lat_median"]
         geoloc_data["longitude"] = geoloc_data["long_median"]
-        geoloc[region_name] = geoloc_data
+        geolocations[region_name] = geoloc_data
 
-    geoloc_list = list(filter(lambda g: g["cloud"] in ["AWS", "GCP"], geoloc.values()))
+    geoloc_list = list(filter(lambda g: g["cloud"] in ["AWS", "GCP"], geolocations.values()))
 
     keys = [
         "cloud",
