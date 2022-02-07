@@ -14,7 +14,7 @@ from cloud.clouds import (
     get_regions,
     get_region,
 )
-from graph.graph import graph_full_testing_history
+from graph.plot_chart import graph_full_testing_history
 from history.attempted import (
     without_already_succeeded,
     write_attempted_tests,

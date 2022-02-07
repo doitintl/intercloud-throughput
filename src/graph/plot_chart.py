@@ -116,7 +116,8 @@ def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
 def __plot_figure(count, cloudpair, clouddata, subdir):
     dist: list[float] = clouddata[cloudpair]["distance"]
     avg_rtt: list[float] = clouddata[cloudpair]["avgrtt"]
-    if True:bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
+    if True:
+        bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
 
     plt.figure(count)
     fig, base_ax = plt.subplots()
@@ -135,8 +136,9 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         "red",
         "seconds",
         0,
-        300,
+        600,
         False,
+        True,
     )
     __plot_series(
         cloudpair,
@@ -148,8 +150,9 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         "blue",
         "Mbps",
         1,
-        3000,
+        122000,
         True,
+        False,
     )
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
     chart_file = f"{subdir}/{__cloudpair_s(cloudpair)}.png"
@@ -175,26 +178,52 @@ def __plot_series(
     loc: str,
     color: str,
     unit: str,
-        bottom:int,
-        top:int,
+    bottom: int,
+    top: int,
     logarithm: bool,
+    clean: bool,
 ):
+
+    if clean:
+        x, y = __clean_extreme_low_outliers(x, y)
+    print("EXTREMA",series_name, min(y), max(y))
     if logarithm:
-        plot_func = axis.semilogy
+        axis.set_yscale("log")
         ylabel = f"{unit} (log)"
         corr, _ = pearsonr(x, [log2(i) for i in y])
     else:
-        plot_func = axis.plot
         ylabel = unit
         corr, _ = pearsonr(x, y)
+
     axis.set_ylabel(ylabel)
 
-    plt.xlim(0,18000)# 20000 is  half the circumf of earth
-    axis.set_ylim(bottom,top)
-    plot_func(x, y, color=color, label=f"{series_name}\n(r={round(corr, 2)})")
+    plt.xlim(
+        0, 17000
+    )  # 20000 km is  half the circumf of earth, and the farthest pairs of data centers are 18000km
+    axis.set_ylim(bottom, top)
+
+    axis.scatter(
+        x,
+        y,
+        color=color,
+        label=f"{series_name}\n(r={round(corr, 2)})",
+    )
     axis.legend(loc=loc)
 
-    #__plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=logarithm)
+    __plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=logarithm)
+
+
+def __clean_extreme_low_outliers(x, y):
+    x_cleaned = []
+    y_cleaned = []
+    extreme_low_outliers = max(y) / 1000
+    for i in range(len(x)):
+        if y[i] > extreme_low_outliers:
+            x_cleaned.append(x[i])
+            y_cleaned.append(y[i])
+    x = x_cleaned
+    y = y_cleaned
+    return x, y
 
 
 LinAlgError_counter = 0
@@ -206,7 +235,9 @@ def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, logarithm=False):
     try:
 
         # noinspection PyTupleAssignmentBalance
-        m, b = np.polyfit(dist_np, y_np, 1)
+        returned=  np.polyfit(dist_np, y_np, 1, full=True)
+        m,b=returned[0]
+
         logging.info("For %s, slope is %f and intercept is %f", lbl, m, b)
         if logarithm:
             plot_func = ax.semilogy
