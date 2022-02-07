@@ -4,6 +4,8 @@ import subprocess
 from datetime import datetime
 from math import log2
 from os import mkdir
+from pathlib import Path
+from sys import platform
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -102,22 +104,23 @@ def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
     datetime_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
     subdir = os.path.abspath(f"{results_dir}/charts/{datetime_s}")
     logging.info("Generating charts in %s", subdir)
-    try:
-        os.mkdir(subdir)
-    except FileExistsError:
-        pass
+
+    Path(subdir).mkdir(parents=True, exist_ok=True)
 
     for i, (cloudpair, data) in enumerate(clouddata.items()):
         __plot_figure(i, cloudpair, clouddata, subdir)
+    import platform
 
-    subprocess.call(["open", subdir])
+    if platform.system() == "Darwin":
+        subprocess.call(["open", subdir])
 
 
 def __plot_figure(count, cloudpair, clouddata, subdir):
     dist: list[float] = clouddata[cloudpair]["distance"]
     avg_rtt: list[float] = clouddata[cloudpair]["avgrtt"]
-    if True:
-        bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
+    bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
+    if not dist:  # No data
+        return
 
     plt.figure(count)
     fig, base_ax = plt.subplots()
@@ -134,11 +137,11 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         rtt_ax,
         "upper left",
         "red",
-        "seconds",
-        0,
-        600,
-        False,
-        True,
+        unit="seconds",
+        bottom=0,
+        top=600,
+        semilogy=False,
+        clean_nearzeros=False,
     )
     __plot_series(
         cloudpair,
@@ -147,12 +150,12 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
         bitrate,
         bitrate_ax,
         "upper right",
-        "blue",
-        "Mbps",
-        1,
-        122000,
-        True,
-        False,
+        color="blue",
+        unit="Mbps",
+        bottom=1,
+        top=3000,
+        semilogy=True,
+        clean_nearzeros=False,
     )
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
     chart_file = f"{subdir}/{__cloudpair_s(cloudpair)}.png"
@@ -180,14 +183,14 @@ def __plot_series(
     unit: str,
     bottom: int,
     top: int,
-    logarithm: bool,
-    clean: bool,
+    semilogy: bool,
+    clean_nearzeros: bool,
 ):
 
-    if clean:
+    if clean_nearzeros:
         x, y = __clean_extreme_low_outliers(x, y)
-    print("EXTREMA",series_name, min(y), max(y))
-    if logarithm:
+
+    if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"
         corr, _ = pearsonr(x, [log2(i) for i in y])
@@ -210,7 +213,7 @@ def __plot_series(
     )
     axis.legend(loc=loc)
 
-    __plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=logarithm)
+    __plot_linear_fit(axis, x, y, color, lbl=series_name, logarithm=semilogy)
 
 
 def __clean_extreme_low_outliers(x, y):
@@ -235,8 +238,8 @@ def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, logarithm=False):
     try:
 
         # noinspection PyTupleAssignmentBalance
-        returned=  np.polyfit(dist_np, y_np, 1, full=True)
-        m,b=returned[0]
+        returned = np.polyfit(dist_np, y_np, 1, full=True)
+        m, b = returned[0]
 
         logging.info("For %s, slope is %f and intercept is %f", lbl, m, b)
         if logarithm:

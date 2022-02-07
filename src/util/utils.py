@@ -4,6 +4,7 @@ import math
 import os
 import random
 import string
+from threading import Lock
 from time import time
 from typing import Union
 
@@ -51,14 +52,24 @@ def random_id():
     return "".join(s)
 
 
+lock = Lock()
+
+
 def gcp_default_project():
+
     global __gcp_default
     if not __gcp_default:
-        env = {"PATH": os.environ["PATH"]}
-        __gcp_default = subprocesses.run_subprocess("./scripts/gcp-project.sh", env=env)
-        if __gcp_default.endswith("\n"):
-            __gcp_default = __gcp_default[:-1]
-
+        lock.acquire()
+        try:
+            if not __gcp_default:
+                env = {"PATH": os.environ["PATH"]}
+                __gcp_default = subprocesses.run_subprocess(
+                    "./scripts/gcp-project.sh", env=env
+                )
+                if __gcp_default.endswith("\n"):  # It does have this \n
+                    __gcp_default = __gcp_default[:-1]
+        finally:
+            lock.release()
     return __gcp_default
 
 
@@ -86,8 +97,8 @@ def date_s():
     return datetime.datetime.utcnow().isoformat() + "Z"
 
 
-def parse_infinity(a:str)->Union[int, float]:
-    if a == "inf" or a==math.inf:
+def parse_infinity(a: str) -> Union[int, float]:
+    if a == "inf" or a == math.inf:
         return math.inf
     else:
         return int(a)

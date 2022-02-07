@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+from typing import Optional
 
 from cloud.clouds import CloudRegion
 from util.utils import set_cwd
@@ -53,15 +54,17 @@ def write_results_for_run(
 
 
 def load_past_results() -> list[dict]:
-    def parse_nums(r):
+    def parse_nums(r) -> Optional[dict[str, float]]:
         ret = {}
         for k, v in r.items():
             if k in ["distance", "bitrate_Bps", "avgrtt"]:
+                if not v:
+                    return None
                 try:
                     ret[k] = float(v)
                 except ValueError as v:
                     logging.error(
-                        "Parsing numbers; for key  %s could not convert %s in %r",
+                        "Parsing numbers; for key %s could not convert %s in %r",
                         k,
                         v,
                         r,
@@ -85,6 +88,7 @@ def load_past_results() -> list[dict]:
             header = next(reader)
             results = [dict(zip(header, row)) for row in reader]
             results = [parse_nums(r) for r in results]
+            results = [r for r in results if r is not None]
             return results
     except FileNotFoundError:
         return []
@@ -114,10 +118,6 @@ def __count_tests_per_region_pair(
         for pair, count in items
     ]
     return dicts
-
-
-def analyze_failed_regions():
-    print("TODO")  # TODO
 
 
 def analyze_test_count():

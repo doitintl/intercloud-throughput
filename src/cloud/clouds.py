@@ -106,8 +106,8 @@ def get_regions() -> list[CloudRegion]:
             region_id = row["region"]
 
             __regions.append(
-                    CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
-                )
+                CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
+            )
         fp.close()
     return __regions
 
@@ -132,5 +132,10 @@ def get_region(
 
 def interregion_distance(r1: CloudRegion, r2: CloudRegion):
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
-    assert (r1 == r2) == (ret == 0), "Expect 0 km if and only if same region"
+    assert {r1, r2} == {
+        get_region("GCP", "asia-southeast1"),
+        get_region("AWS", "ap-southeast-1"),
+    } or (r1 == r2) == (
+        ret == 0
+    ), "Expect 0 km if and only if same region unless different cloud's regions are known to have the same coordinates"
     return ret

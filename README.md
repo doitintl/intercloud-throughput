@@ -23,31 +23,34 @@ single cloud.
         * create, describe, and delete for instances
         * GCP only: SSH to instances
         * AWS only: create security groups; create keys (PEM)
-    * A default VPC, with Internet Gateway, in each region.
+    * In each region: A default VPC, with  an Internet Gateway and a route sending internet traffic through that Gateway.
 
 ## Usage
 
 * Run `pip install -r requirements.txt`, preferably in a virt env. Make sure you have Python 3.9 or above.
-* Run `performance_test.py`
-* Options:
-    * Run `performance_test.py --help`
+* Run `performance_test.py --help` for usage.
+* Behavior
     * By default, the system will launch a VM in each region (about 47 of these),  
       then test all directed pairs (source and destination) among these VMs.
         * The number of total tests is of course _O(n<sup>2</sup>)_).
         * Already-run test-pairs (as in `results.csv`) are not re-run.
         * Intraregion tests, where the source and destination were the same region, are omitted.
-        * You can limit the number of regions tested in a "batch"  (in parallel).
-        * You can limit the number of such batches.
-        * Or you can specify exactly which region-pairs to test (source and destination, each can be AWS or GCP).
-        * You can run this repeatedly, accumulating more data in `results.csv`.
+* 
+* Options 
+    * You can limit the number of regions tested in a "batch"  (in parallel).
+    * You can limit the number of such batches.
+    * You can specify which cloud-pairs should be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP).
+    * Or you can specify exactly which region-pairs to test (source and destination, each can be AWS or GCP).
+    * You can run this repeatedly, accumulating more data in `results.csv`.
 
 ## Output
 
 * By default, directory `results`. You can change this by setting env variable `PERFTEST_RESULTSDIR`
 * See `results.csv`, which accumulates results.
 * Graphs are output to `charts` in that directory.
-* For tracking
+* For tracking progress
     * `attempted-tests.csv` lists attempted tests, even ones that then fail.
-    * `failed-tests.csv` lists failed tests.
-    * `intraregion-tests.csv` lists tests where the source and destination were the same region.
-    * `tests-per-regionpair.csv` tracks tests per region pair (so we can see if there were repeats).
+    * `failed-to-create-vm.csv` lists cases where a VM could not be created.
+    * `failed-tests.csv` lists failed tests, whether because a VM could not be created
+    or because a connection could not be made between VMs in the different regions.
+    * `tests-per-regionpair.csv` tracks the number of tests per region pair (so we can see if there were repeats).

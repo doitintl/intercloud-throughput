@@ -1,6 +1,7 @@
 import csv
 import logging
 import os.path
+from pathlib import Path
 
 from cloud.clouds import CloudRegion, get_region
 from history.results import load_past_results, results_dir
@@ -92,7 +93,11 @@ def write_attempted_tests(
 
     if attempts:
         keys = list(attempts[0].keys())
-        with open(__attempted_tests_csv_file(), "w") as f:
+        f = __attempted_tests_csv_file()
+        if not os.path.exists(f):
+            Path(os.path.dirname(f)).mkdir(parents=True, exist_ok=True)
+
+        with open(f, "w") as f:
             dict_writer = csv.DictWriter(f, keys)
             dict_writer.writeheader()
             dict_writer.writerows(attempts)

@@ -9,7 +9,6 @@ from history.results import (
     write_results_for_run,
     combine_results,
     analyze_test_count,
-    analyze_failed_regions,
 )
 from test_steps.create_vms import find_regions_lacking_a_vm
 from util.subprocesses import run_subprocess
@@ -111,8 +110,9 @@ def do_tests(
 
         for thread in threads:
             thread.join(timeout=thread_timeout)
+            if thread.is_alive():
+                logging.info("%s timed out", thread)
             logging.info('Test "%s" done', thread.name)
 
         combine_results(run_id)
         analyze_test_count()
-        analyze_failed_regions()

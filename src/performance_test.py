@@ -66,10 +66,12 @@ def __parse_region_pairs(
         return get_region(*cloud_and_region)
 
     pairs_s: list[str] = region_pairs.split(";")
+    pairs_s = [t for t in pairs_s if t]
     test_pairs: list[list[str]] = [p.split(",") for p in pairs_s]
-    if not all(len(pair) == 2 for pair in test_pairs):
+    badly_formed = [p for p in test_pairs if len(p) != 2]
+    if badly_formed:
         raise ValueError(
-            f"{pairs_s} is not comma-separated cloud-region pairs, each pair semi-colon-separated"
+            f"{pairs_s} is not comma-separated cloud-region pairs, each pair semi-colon-separated: See {badly_formed}"
         )
     pairs_regions = [(parse_region(p[0]), parse_region(p[1])) for p in test_pairs]
     return pairs_regions
@@ -99,13 +101,12 @@ def __ascending_freq_keyfunc() -> Callable[[CloudRegion], int]:
 
 
 def __batches_of_tests(
-    regions_per_batch: Union[int,float], #float only for inf
-    max_batches:  Union[int,float],#float only for inf
+    regions_per_batch: Union[int, float],  # float only for inf
+    max_batches: Union[int, float],  # float only for inf
     cloud: Cloud,
-    cloudpairs:list[tuple[Cloud , Cloud ]],
+    cloudpairs: list[tuple[Cloud, Cloud]],
     preselected_region_pairs: list[tuple[CloudRegion, CloudRegion]],
 ) -> list[list[tuple[CloudRegion, CloudRegion]]]:
-
 
     if regions_per_batch < 2:
         raise ValueError(
@@ -165,15 +166,17 @@ def __sort_regions(regions: list[CloudRegion], interleave: bool):
     regions.sort(reverse=True)
     # Next sort puts regions in order of how much they were neglectied in previous test runs
     # Sorting is table, so where no data is available here,  the previous sort will hold
-    regions.sort(key=__ascending_freq_keyfunc())
-    if interleave:
-        for c in Cloud:
-            cloud_regions = [r for r in regions if r.cloud == c]
-            by_clouds.append(cloud_regions)
 
-        zipped = itertools.zip_longest(*by_clouds)
-        regions = itertools.chain.from_iterable(zipped)
-        regions = [r for r in regions if r]
+    for c in Cloud:
+        cloud_regions = [r for r in regions if r.cloud == c]
+        by_clouds.append(cloud_regions)
+
+    zipped = itertools.zip_longest(*by_clouds)
+    regions = itertools.chain.from_iterable(zipped)
+    regions = [r for r in regions if r]
+
+    if not interleave:
+        regions.sort(key=__ascending_freq_keyfunc())
 
     return regions
 
@@ -189,7 +192,6 @@ def __max_possible(max_batches, num_regions, regions_per_batch):
     return max_tests_that_could_be_allowed > max_tests_possible_for_num_regions
 
 
-
 def __make_test_batches(
     batches_of_regions: list[list[CloudRegion]], cloudpairs: list[tuple[Cloud, Cloud]]
 ):
@@ -199,13 +201,15 @@ def __make_test_batches(
         len_all = len(crossproduct_regionpairs)
         if cloudpairs:
             crossproduct_regionpairs = [
-                region_pair for region_pair in crossproduct_regionpairs if
-                (region_pair[0].cloud,region_pair[1].cloud) in cloudpairs
+                region_pair
+                for region_pair in crossproduct_regionpairs
+                if (region_pair[0].cloud, region_pair[1].cloud) in cloudpairs
             ]
         if len(crossproduct_regionpairs) != len_all:
             logging.info(
                 "From batch, dropping %d region pairs that were not in the specified list of cloud pairs, leaving %d",
-                len_all - len(crossproduct_regionpairs), len(crossproduct_regionpairs)
+                len_all - len(crossproduct_regionpairs),
+                len(crossproduct_regionpairs),
             )
 
         len_before = len(crossproduct_regionpairs)
@@ -213,7 +217,8 @@ def __make_test_batches(
         if len(crossproduct_regionpairs) != len_before:
             logging.info(
                 "Dropping %d region pairs that already succeeded, leaving %d",
-                len_before - len(crossproduct_regionpairs), len(crossproduct_regionpairs)
+                len_before - len(crossproduct_regionpairs),
+                len(crossproduct_regionpairs),
             )
         if crossproduct_regionpairs:  # Might have already done all these tests
             batches_of_tests.append(crossproduct_regionpairs)
@@ -242,7 +247,7 @@ def __command_line_args():
         "\nEach cross-product combination will be tested with both directions of source/destination "
         "(but without intra-region (self-to-self) pairs). "
         "\nThus, there will be (batch_size * (batch_size-1))  tests in a batch)"
-        "\nDefault is \"inf\""
+        '\nDefault is "inf"'
         "\nIf batch_size=inf, there will be 2070 tests across 46 regions (assuming default enablement of AWS regions). "
         "This is the fastest and most efficient, but means running 46 (very cheap) instances (for under 10 minutes). "
         "\nThe parameter is ignored if --region_pairs is used.",
@@ -253,7 +258,7 @@ def __command_line_args():
         type=int,
         default=default_max_batches,
         help="Max number of batches of regions. "
-        '\nTogether with batch_size, this can be used to limit number of tests. '
+        "\nTogether with batch_size, this can be used to limit number of tests. "
         '\nDefault is "inf" and indicates "do all", no maximum number of batches. '
         "\nThe parameter is ignored if --region_pairs is used.",
     )
@@ -282,11 +287,15 @@ def __command_line_args():
     if args.cloud and args.clouds:
         raise ValueError("Cannot specify both --cloud and --clouds")
 
-    if bool(args.region_pairs) == bool(
-        args.max_batches != default_max_batches
-        or args.batch_size != default_batch_sz
-        or args.cloud
-        or args.clouds
+    if (
+        True
+        == bool(args.region_pairs)
+        == bool(
+            args.max_batches != default_max_batches
+            or args.batch_size != default_batch_sz
+            or args.cloud
+            or args.clouds
+        )
     ):
         raise ValueError(
             "Cannot specify both --region_pairs and other params: %s", args
@@ -299,14 +308,17 @@ def main():
     args = __command_line_args()
 
     if args.clouds:
-      clouds = [(Cloud(p[0]), Cloud(p[1])) for p in [cloudpair_s.split(",") for cloudpair_s in args.clouds.split(";")]]
+        clouds = [
+            (Cloud(p[0]), Cloud(p[1]))
+            for p in [cloudpair_s.split(",") for cloudpair_s in args.clouds.split(";")]
+        ]
     else:
-      clouds=[]
+        clouds = []
 
     batches = __batches_of_tests(
         parse_infinity(args.batch_size),
         parse_infinity(args.max_batches),
-         args.cloud,
+        args.cloud,
         clouds,
         __parse_region_pairs(args.region_pairs),
     )
@@ -321,8 +333,6 @@ def main():
         test_batch(batch, run_id)
 
     graph_full_testing_history()
-
-
 
 
 if __name__ == "__main__":

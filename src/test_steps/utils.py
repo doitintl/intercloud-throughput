@@ -20,5 +20,3 @@ def unique_regions(
             if p[i] not in ret:
                 ret.append(p[i])
     return ret
-
-

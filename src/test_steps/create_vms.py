@@ -69,6 +69,8 @@ def create_vms(
 
         for thread in threads:
             thread.join(timeout=thread_timeout)
+            if thread.is_alive():
+                logging.info("%s timed out", thread)
             logging.info('create_vm in "%s" done', thread.name)
 
         if not vm_region_and_address_infos:
