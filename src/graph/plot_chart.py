@@ -1,3 +1,4 @@
+import platform
 import logging
 import os
 import subprocess
@@ -5,7 +6,7 @@ from datetime import datetime
 from math import log2
 from os import mkdir
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -99,19 +100,19 @@ def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
     logging.info("Generating charts in %s", subdir)
 
     Path(subdir).mkdir(parents=True, exist_ok=True)
-
+    i=0
     for i, (cloudpair, data) in enumerate(clouddata.items()):
         __plot_figure(i, cloudpair, clouddata, subdir)
-    import platform
+    i+=1
+    __plot_figure(i, None, clouddata, subdir, multiplot=True)
 
     if platform.system() == "Darwin":
         subprocess.call(["open", subdir])
 
 
-def __plot_figure(count, cloudpair, clouddata, subdir):
-    dist: list[float] = clouddata[cloudpair]["distance"]
-    avg_rtt: list[float] = clouddata[cloudpair]["avgrtt"]
-    bitrate: list[float] = clouddata[cloudpair]["bitrate_Bps"]
+def __plot_figure(count:int, cloudpair: Optional[tuple[Cloud, Cloud]] , clouddata:dict[Optional[tuple[Cloud, Cloud]]], subdir:str, multiplot:bool=False):
+    dist, avg_rtt, bitrate = [clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]]
+
     if not dist:  # No data
         return
 
@@ -121,36 +122,18 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
     bitrate_ax = base_ax.twinx()
 
     plt.xlabel = "distance"
+    if not multiplot:
+        __plot_2_series(dist, avg_rtt, bitrate, cloudpair, rtt_ax, bitrate_ax, multiplot, j=0)
+    else:
+        assert not cloudpair# "None" value indicates all data
+        for j,(cloudpair_, cpair_data) in  enumerate( clouddata.items()):
+            dist, avg_rtt,bitrate =[ clouddata[cloudpair_][k] for k in ["distance", "avgrtt", "bitrate_Bps"]]
+            if not dist:
+                continue
+            __plot_2_series(dist, avg_rtt,  bitrate, cloudpair_,  rtt_ax, bitrate_ax,  multiplot,j)
 
-    __plot_series(
-        cloudpair,
-        f"avg rtt",
-        dist,
-        avg_rtt,
-        rtt_ax,
-        "upper left",
-        "red",
-        unit="seconds",
-        bottom=0,
-        top=300,
-        semilogy=False,
-    )
-    __plot_series(
-        cloudpair,
-        f"bitrate",
-        dist,
-        bitrate,
-        bitrate_ax,
-        "upper right",
-        color="blue",
-        unit="Mbps",
-        bottom=1,
-        top=3000,
-        semilogy=True,
-
-    )
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
-    chart_file = f"{subdir}/{__cloudpair_s(cloudpair)}.png"
+    chart_file = f"{subdir}/{__cloudpair_s(cloudpair, multiplot)}.png"
     try:
         mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
@@ -160,8 +143,50 @@ def __plot_figure(count, cloudpair, clouddata, subdir):
     plt.show()
 
 
-def __cloudpair_s(cloudpair):
-    return "All Data" if cloudpair is None else f"{cloudpair[0]}-{cloudpair[1]}"
+
+def __plot_2_series(dist:list, avg_rtt:list,bitrate:list, cloudpair:Optional[tuple[Cloud,Cloud]],
+                      rtt_ax, bitrate_ax,  multiplot:bool,j=0):
+    reds = ["red",  "firebrick",  "darkred", "orangered",'orange','yellow']
+    blues = ["blue", "mediumblue", "mediumslateblue", "lightsteelblue", "plum"]
+    __plot_series(
+        cloudpair,
+        f"avg rtt",
+        dist,
+        avg_rtt,
+        rtt_ax,
+        "upper left",
+        reds[j],
+        unit="seconds",
+        bottom=0,
+        top=300,
+        semilogy=False,
+        multiplot=multiplot,
+        marker="o"
+    )
+    __plot_series(
+        cloudpair,
+        f"bitrate",
+        dist,
+        bitrate,
+        bitrate_ax,
+        "upper right",
+        color=blues[j],
+        unit="Mbps",
+        bottom=1,
+        top=10000,
+        semilogy=True,
+        multiplot=multiplot,
+        marker='+'
+    )
+
+
+def __cloudpair_s(cloudpair,multiplot=False):
+    if multiplot:
+        assert not cloudpair
+        multiplot_s=" by cloud-pair"
+    else:
+        multiplot_s=""
+    return f"All Data{multiplot_s}" if cloudpair is None else f"{cloudpair[0]}-{cloudpair[1]}"
 
 
 def __plot_series(
@@ -176,6 +201,8 @@ def __plot_series(
     bottom: int,
     top: int,
     semilogy: bool,
+        multiplot:bool,
+        marker:str
 ):
 
     if semilogy:
@@ -197,9 +224,11 @@ def __plot_series(
         x,
         y,
         color=color,
+        marker=marker,
         label=f"{series_name}\n(r={round(corr, 2)})",
     )
-    axis.legend(loc=loc)
+    if not multiplot:
+        axis.legend(loc=loc)
 
     #__plot_linear_fit(axis, x, y, color, lbl=series_name, semilogy=semilogy)
 
