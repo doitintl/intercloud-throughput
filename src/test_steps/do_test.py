@@ -19,8 +19,8 @@ def __do_test(
     run_id, src_dest: tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
 ):
     src, dst = src_dest
-    src_region_, src_addr_infos = src
-    dst_region_, dst_addr_infos = dst
+    src_region_, src_vm_info = src
+    dst_region_, dst_vm_info = dst
     with Timer(f"__do_test:{src_region_},{dst_region_}"):
         try:
             logging.info("running test from %s to %s", src_region_, dst_region_)
@@ -28,7 +28,7 @@ def __do_test(
             env = {
                 "PATH": os.environ["PATH"],
                 "RUN_ID": run_id,
-                "SERVER_PUBLIC_ADDRESS": dst_addr_infos["address"],
+                "SERVER_PUBLIC_ADDRESS": dst_vm_info["address"],
                 "SERVER_CLOUD": dst_region_.cloud.name,
                 "CLIENT_CLOUD": src_region_.cloud.name,
                 "SERVER_REGION": dst_region_.region_id,
@@ -37,14 +37,14 @@ def __do_test(
 
             if src_region_.cloud == Cloud.AWS:
                 env |= {
-                    "CLIENT_PUBLIC_ADDRESS": src_addr_infos["address"],
+                    "CLIENT_PUBLIC_ADDRESS": src_vm_info["address"],
                     "BASE_KEYNAME": basename_key_for_aws_ssh,
                 }
             elif src_region_.cloud == Cloud.GCP:
                 try:
                     env |= {
-                        "CLIENT_NAME": src_addr_infos["name"],
-                        "CLIENT_ZONE": src_addr_infos["zone"],
+                        "CLIENT_NAME": src_vm_info["name"],
+                        "CLIENT_ZONE": src_vm_info["zone"],
                     }
                 except KeyError as ke:
                     logging.error("{src_addr_infos=}")
@@ -67,8 +67,13 @@ def __do_test(
                 process_stdout,
             )
             test_result = process_stdout + "\n"
-            result_j = json.loads(test_result)
 
+            result_j = json.loads(test_result)
+            machine_types: dict[Cloud, str] = {
+                r[0].cloud: r[1]["machine_type"] for r in src_dest
+            }
+            for c in Cloud:
+                result_j[f"{c.name.lower()}_vm"] = machine_types.get(c)
             write_results_for_run(result_j, run_id, src_region_, dst_region_)
         except Exception as e:
             logging.error("Exception %s", e)
@@ -111,7 +116,7 @@ def do_tests(
         for thread in threads:
             thread.join(timeout=thread_timeout)
             if thread.is_alive():
-                logging.info("%s timed out", thread)
+                logging.info("%s timed out", thread.name)
             logging.info('Test "%s" done', thread.name)
 
         combine_results(run_id)

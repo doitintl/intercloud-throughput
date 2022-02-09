@@ -1,12 +1,13 @@
-import platform
+import itertools
 import logging
 import os
+import platform
 import subprocess
 from datetime import datetime
 from math import log2
 from os import mkdir
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,7 @@ from numpy.linalg import LinAlgError
 from scipy.stats import pearsonr
 
 from cloud.clouds import interregion_distance, get_region, Cloud
-from history.results import load_past_results, results_dir, perftest_resultsdir_envvar
+from history.results import load_history, results_dir, perftest_resultsdir_envvar
 from util.utils import set_cwd
 
 logging.basicConfig(
@@ -32,7 +33,7 @@ avg_rtt_legend_loc = "upper left"
 
 
 def graph_full_testing_history():
-    results = load_past_results()
+    results = load_history()
     if not results:
         raise ValueError(
             "No results in %s; maybe set another value for %s env variable"
@@ -64,23 +65,24 @@ def graph_full_testing_history():
 
     results.sort(key=lambda d: d["distance"])
 
-    clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]] = {}
-    clouddata[None] = __statistics(results)
+    clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]] = {
+        None: __statistics(results)
+    }
     s = ""
-    for from_cloud in Cloud:
-        for to_cloud in Cloud:
-            cloudpair_results = [
-                r
-                for r in results
-                if (from_cloud.name, to_cloud.name) == (r["from_cloud"], r["to_cloud"])
-            ]
-            s += "\t%s,%s has %d results\n" % (
-                from_cloud,
-                to_cloud,
-                len(cloudpair_results),
-            )
+    for (from_cloud, to_cloud) in itertools.product(Cloud, Cloud):
+        cloudpair_results = [
+            r
+            for r in results
+            if (from_cloud.name, to_cloud.name) == (r["from_cloud"], r["to_cloud"])
+        ]
+        s += "\t%s,%s has %d results\n" % (
+            from_cloud,
+            to_cloud,
+            len(cloudpair_results),
+        )
 
-            clouddata[(from_cloud, to_cloud)] = __statistics(cloudpair_results)
+        clouddata[(from_cloud, to_cloud)] = __statistics(cloudpair_results)
+
     logging.info("Test distribution:\n" + s)
     __plot(clouddata)
 
@@ -97,7 +99,6 @@ def __statistics(results):
 
 
 def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
-
     datetime_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
     subdir = os.path.abspath(f"{results_dir}/charts/{datetime_s}")
     logging.info("Generating charts in %s", subdir)
@@ -105,9 +106,12 @@ def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
     Path(subdir).mkdir(parents=True, exist_ok=True)
     i = 0
     for i, (cloudpair, data) in enumerate(clouddata.items()):
-        __plot_figure(i, cloudpair, clouddata, subdir)
-    i += 1
-    __plot_figure(i, None, clouddata, subdir, multiplot=True)
+        if cloudpair is None:
+            __plot_figure(i, None, clouddata, subdir, multiplot=True)
+        else:
+            __plot_figure(i, cloudpair, clouddata, subdir)
+
+
 
     if platform.system() == "Darwin":
         subprocess.call(["open", subdir])
@@ -136,7 +140,7 @@ def __plot_figure(
 
     if not multiplot:
         _, _ = __plot_2_series(
-            dist, avg_rtt, bitrate, cloudpair, avg_rtt_ax, bitrate_ax, multiplot, j=0
+            dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot, j=0
         )
     else:
         __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot)
@@ -157,16 +161,18 @@ def __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot):
     bitrate_lines = []
     labels = []
     assert not cloudpair  # "None" value indicates all data
+    # Don't plot the aggregated values in this disaggregated chart
+    clouddata = {k: v for k, v in clouddata.items() if k}  #
+
     for j, (cloudpair_, cpair_data) in enumerate(clouddata.items()):
-        if cloudpair_ is None:
-            continue  # Don't plot the aggregated values in this disaggregated charg
+
         dist, avg_rtt, bitrate = [
             clouddata[cloudpair_][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
         ]
         if not dist:
             continue
         avg_rtt_line, bitrate_line = __plot_2_series(
-            dist, avg_rtt, bitrate, cloudpair_, avg_rtt_ax, bitrate_ax, multiplot, j
+            dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot, j
         )
         labels.append(f"{cloudpair_[0].name},{cloudpair_[1].name}")
         avg_rtt_lines.append(avg_rtt_line)
@@ -186,16 +192,15 @@ def __plot_2_series(
     dist: list,
     avg_rtt: list,
     bitrate: list,
-    cloudpair: Optional[tuple[Cloud, Cloud]],
     rtt_ax,
     bitrate_ax,
     multiplot: bool,
     j=0,
-) -> PathCollection:
-    reds = ["red", "firebrick", "darkred", "orangered", "orange", "salmon"]
-    blues = ["blue", "mediumblue", "mediumslateblue", "lightsteelblue", "slateblue"]
+) -> tuple[PathCollection, PathCollection]:
+    reds = ["red", "darkred", "orangered", "orange", "salmon", "peachpuff"]
+    blues = ["darkblue", "navy", "mediumslateblue", "lightsteelblue", "slateblue"]
+
     avg_rtt_line = __plot_series(
-        cloudpair,
         f"avg rtt",
         dist,
         avg_rtt,
@@ -210,7 +215,6 @@ def __plot_2_series(
         marker="o",
     )
     bitrate_line = __plot_series(
-        cloudpair,
         f"bitrate",
         dist,
         bitrate,
@@ -233,6 +237,7 @@ def __cloudpair_s(cloudpair, multiplot=False):
         multiplot_s = " by cloud-pair"
     else:
         multiplot_s = ""
+
     return (
         f"All Data{multiplot_s}"
         if cloudpair is None
@@ -241,7 +246,6 @@ def __cloudpair_s(cloudpair, multiplot=False):
 
 
 def __plot_series(
-    cloudpair: tuple[Cloud, Cloud],
     series_name: str,
     x: list,
     y: list,
@@ -255,7 +259,6 @@ def __plot_series(
     multiplot: bool,
     marker: str,
 ) -> PathCollection:
-
     if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"

@@ -37,7 +37,9 @@ def __combine():
         geoloc_data["longitude"] = geoloc_data["long_median"]
         geolocations[region_name] = geoloc_data
 
-    geoloc_list = list(filter(lambda g: g["cloud"] in ["AWS", "GCP"], geolocations.values()))
+    geoloc_list = list(
+        filter(lambda g: g["cloud"] in ["AWS", "GCP"], geolocations.values())
+    )
 
     keys = [
         "cloud",

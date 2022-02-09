@@ -45,7 +45,7 @@ CREATION_OUTPUT=$( aws ec2 run-instances \
   --region "$REGION" \
   --image-id "$AMI" \
   --security-group-ids intercloud-sg \
-  --instance-type t3.nano \
+  --instance-type $MACHINE_TYPE \
   --key-name "$REGION_KEYNAME" \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME}},{Key=run-id,Value=${RUN_ID}}]" \
    --user-data file://"$FULLPATH_INIT_SCRIPT"

@@ -2,7 +2,7 @@ import logging
 import threading
 from typing import Optional
 
-from cloud.clouds import CloudRegion
+from cloud.clouds import CloudRegion, Cloud
 from history.attempted import write_missing_regions
 from test_steps.utils import env_for_singlecloud_subprocess, unique_regions
 from util.subprocesses import run_subprocess
@@ -13,19 +13,24 @@ def __create_vm(
     run_id_: str,
     cloud_region_: CloudRegion,
     vm_region_and_address_infos_inout: dict[CloudRegion, dict],
+    machine_type=str,
 ):
     with Timer(f"__create_vm: {cloud_region_}"):
         logging.info("Will launch a VM in %s", cloud_region_)
         env = env_for_singlecloud_subprocess(run_id_, cloud_region_)
-
+        env["MACHINE_TYPE"] = machine_type
         process_stdout = run_subprocess(cloud_region_.script(), env)
 
-        vm_info = {}
         vm_address_info = process_stdout
         if vm_address_info[-1] == "\n":
             vm_address_info = vm_address_info[:-1]
         vm_address_infos = vm_address_info.split(",")
-        vm_info["address"] = vm_address_infos[0]
+
+        vm_info = {
+            "machine_type": machine_type,
+            "address": vm_address_infos[0],
+        }
+
         if len(vm_address_infos) > 1:
             vm_info["name"] = vm_address_infos[1]
             vm_info["zone"] = vm_address_infos[2]
@@ -50,7 +55,9 @@ def __arrange_vms_by_region(
 
 
 def create_vms(
-    region_pairs_: list[tuple[CloudRegion, CloudRegion]], run_id: str
+    region_pairs_: list[tuple[CloudRegion, CloudRegion]],
+    run_id: str,
+    machine_types: dict[Cloud, str],
 ) -> list[
     tuple[tuple[CloudRegion, Optional[dict]], tuple[CloudRegion, Optional[dict]]]
 ]:
@@ -58,11 +65,22 @@ def create_vms(
         vm_region_and_address_infos = {}
         threads = []
         regions_dedup = unique_regions(region_pairs_)
+        logging.info(
+            "Will launch  VMs of types %s in %s regions: %s",
+            machine_types,
+            len(regions_dedup),
+            regions_dedup,
+        )
         for cloud_region in regions_dedup:
             thread = threading.Thread(
                 name=f"create-{cloud_region}",
                 target=__create_vm,
-                args=(run_id, cloud_region, vm_region_and_address_infos),
+                args=(
+                    run_id,
+                    cloud_region,
+                    vm_region_and_address_infos,
+                    machine_types[cloud_region.cloud],
+                ),
             )
             threads.append(thread)
             thread.start()
@@ -70,7 +88,7 @@ def create_vms(
         for thread in threads:
             thread.join(timeout=thread_timeout)
             if thread.is_alive():
-                logging.info("%s timed out", thread)
+                logging.info("%s timed out", thread.name)
             logging.info('create_vm in "%s" done', thread.name)
 
         if not vm_region_and_address_infos:

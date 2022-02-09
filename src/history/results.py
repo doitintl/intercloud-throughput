@@ -53,28 +53,29 @@ def write_results_for_run(
         logging.info("Wrote %s", results_for_one_run_file)
 
 
-def load_past_results() -> list[dict]:
-    def parse_nums(r) -> Optional[dict[str, float]]:
-        ret = {}
-        for k, v in r.items():
-            if k in ["distance", "bitrate_Bps", "avgrtt"]:
-                if not v:
-                    return None
-                try:
-                    ret[k] = float(v)
-                except ValueError as v:
-                    logging.error(
-                        "Parsing numbers; for key %s could not convert %s in %r",
-                        k,
-                        v,
-                        r,
-                    )
-                    raise v
-            else:
-                ret[k] = v
+def __parse_nums_from_results(r) -> Optional[dict[str, float]]:
+    ret = {}
+    for k, v in r.items():
+        if k in ["distance", "bitrate_Bps", "avgrtt"]:
+            if not v:
+                return None
+            try:
+                ret[k] = float(v)
+            except ValueError as v:
+                logging.error(
+                    "Parsing numbers; for key %s could not convert %s in %r",
+                    k,
+                    v,
+                    r,
+                )
+                raise v
+        else:
+            ret[k] = v
 
-        return ret
+    return ret
 
+
+def load_history() -> list[dict]:
     try:
 
         with open(__results_file()) as f1:
@@ -87,7 +88,7 @@ def load_past_results() -> list[dict]:
             reader = csv.reader(f, skipinitialspace=True)
             header = next(reader)
             results = [dict(zip(header, row)) for row in reader]
-            results = [parse_nums(r) for r in results]
+            results = [__parse_nums_from_results(r) for r in results]
             results = [r for r in results if r is not None]
             return results
     except FileNotFoundError:
@@ -135,7 +136,7 @@ def analyze_test_count():
                 dict_writer.writeheader()
                 dict_writer.writerows(test_counts)
 
-    dicts = load_past_results()
+    dicts = load_history()
     if not dicts:
         logging.info(
             "No previous results found. You may need to check the   %s env variable",
@@ -167,7 +168,7 @@ def combine_results(run_id: str):
         logging.warning("No results at %s", __results_dir_for_run(run_id))
         return
     else:
-        dicts = load_past_results()
+        dicts = load_history()
         filenames = os.listdir(__results_dir_for_run(run_id))
         logging.info(
             f"Adding %d new results into %d existing results in %s",

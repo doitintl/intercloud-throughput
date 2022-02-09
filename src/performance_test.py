@@ -12,17 +12,15 @@ logging.basicConfig(
 )
 
 
-
-
 def main():
     logging.info("Started at %s", date_s())
-    batches = batching.setup_batches()
+    batches, machine_types = batching.setup_batches()
 
     run_id = random_id()
     logging.info("Run ID is %s", run_id)
 
     for batch in batches:
-        batching.batch_setup_test_teardown(batch, run_id)
+        batching.batch_setup_test_teardown(batch, run_id, machine_types)
 
     graph_full_testing_history()
 

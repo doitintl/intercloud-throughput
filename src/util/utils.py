@@ -56,7 +56,6 @@ __gcp_default_project_lock = Lock()
 
 
 def gcp_default_project():
-
     global __gcp_default
     if not __gcp_default:
         __gcp_default_project_lock.acquire()

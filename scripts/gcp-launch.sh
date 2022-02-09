@@ -3,7 +3,6 @@ set -x
 set -e
 set -u
 
-echo $BASH_VERSION
 
 NAME="intercloud-${REGION}-${RUN_ID}"
 ZONE=${REGION}-b
@@ -14,7 +13,7 @@ FULLPATH_INIT_SCRIPT=$(realpath "$SCRIPT_DIR"/../startup-scripts/gcp-install-and
 CREATION_OUTPUT=$(gcloud compute instances create "${NAME}" \
    --project="${PROJECT_ID}" \
    --zone="${ZONE}" \
-  --machine-type=e2-micro \
+  --machine-type=$MACHINE_TYPE \
   --network-interface=network-tier=PREMIUM \
   --labels=run-id="$RUN_ID" \
   --metadata-from-file=startup-script="$FULLPATH_INIT_SCRIPT"

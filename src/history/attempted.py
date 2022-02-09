@@ -4,7 +4,7 @@ import os.path
 from pathlib import Path
 
 from cloud.clouds import CloudRegion, get_region
-from history.results import load_past_results, results_dir
+from history.results import load_history, results_dir
 from util.utils import date_s
 
 
@@ -15,9 +15,7 @@ def __attempted_tests_csv_file():
 def without_already_succeeded(
     region_pairs: list[tuple[CloudRegion, CloudRegion]]
 ) -> list[tuple[CloudRegion, CloudRegion]]:
-    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(
-        load_past_results()
-    )
+    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_history())
     already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(
         __already_attempted()
     )

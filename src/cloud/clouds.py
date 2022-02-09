@@ -22,6 +22,15 @@ class Cloud(Enum):
 
 __PRIVATE__INIT__ = object()
 
+colocated_gcp_aws_datacenters = [
+    ((Cloud.GCP, "europe-west3"), (Cloud.AWS, "eu-central-1")),
+    ((Cloud.GCP, "asia-northeast1"), (Cloud.AWS, "ap-northeast-1")),
+    ((Cloud.GCP, "asia-northeast2"), (Cloud.AWS, "ap-northeast-3")),
+    ((Cloud.GCP, "asia-northeast3"), (Cloud.AWS, "ap-northeast-2")),
+    ((Cloud.GCP, "asia-southeast1"), (Cloud.AWS, "ap-southeast-1")),
+    ((Cloud.GCP, "australia-southeast1"), (Cloud.AWS, "ap-southeast-2")),
+]
+
 
 @total_ordering
 class CloudRegion:
@@ -131,10 +140,9 @@ def get_region(
 
 def interregion_distance(r1: CloudRegion, r2: CloudRegion):
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
-    assert {r1, r2} == {
-        get_region("GCP", "asia-southeast1"),
-        get_region("AWS", "ap-southeast-1"),
-    } or (r1 == r2) == (
+    assert {r1, r2} in [
+        {get_region(*p[0]), get_region(*p[1])} for p in colocated_gcp_aws_datacenters
+    ] or (r1 == r2) == (
         ret == 0
-    ), "Expect 0 km if and only if same region unless different cloud's regions are known to have the same coordinates"
+    ), f"Expect 0 km if and only if same region unless different cloud's regions are known to have the same coordinates: Regions {r1}, {r2}"
     return ret

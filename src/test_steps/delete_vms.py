@@ -19,10 +19,10 @@ def delete_vms(run_id, regions: list[CloudRegion]):
         del_gcp_thread.start()
         del_aws_thread.join(timeout=thread_timeout)
         if del_aws_thread.is_alive():
-            logging.info("%s timed out", del_aws_thread)
+            logging.info("%s timed out", del_aws_thread.name)
         del_gcp_thread.join(timeout=6 * 60)
         if del_gcp_thread.is_alive():
-            logging.info("%s timed out", del_gcp_thread)
+            logging.info("%s timed out", del_gcp_thread.name)
 
 
 def __delete_aws_vms(run_id, regions):
@@ -51,7 +51,7 @@ def __delete_aws_vms(run_id, regions):
         for del_one_aws_region_thread in del_aws_threads:
             del_one_aws_region_thread.join(timeout=thread_timeout)
             if del_one_aws_region_thread.is_alive():
-                logging.info("%s timed out", del_one_aws_region_thread)
+                logging.info("%s timed out", del_one_aws_region_thread.name)
             logging.info("Deletion %s done", del_one_aws_region_thread.name)
 
 

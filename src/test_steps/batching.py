@@ -7,31 +7,42 @@ from itertools import product
 from typing import Union, Callable, Optional
 
 from cloud.aws_regions_enabled import is_nonenabled_auth_aws_region
-from cloud.clouds import Cloud, CloudRegion, get_regions, interregion_distance, get_region
+from cloud.clouds import (
+    Cloud,
+    CloudRegion,
+    get_regions,
+    interregion_distance,
+    get_region,
+)
 from history.attempted import without_already_succeeded, write_attempted_tests
-from history.results import load_past_results
+from history.results import load_history
 from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
 from test_steps.do_test import do_tests
 from test_steps.utils import unique_regions
-
 from util.utils import chunks, parse_infinity
-
 
 default_batch_sz = math.inf
 default_max_batches = math.inf
 default_min_distance = 0
 default_max_distance = math.inf
+default_machine_types = "AWS,t3.nano;GCP,e2-small"
 
-def batch_setup_test_teardown(region_pairs: list[tuple[CloudRegion, CloudRegion]], run_id):
+
+def batch_setup_test_teardown(
+    region_pairs: list[tuple[CloudRegion, CloudRegion]],
+    run_id,
+    machine_types: dict[Cloud, str],
+):
     write_attempted_tests(region_pairs)
     logging.info("Will test %s", region_pairs)
 
     # VMs will still be cleaned up if launch or tests fail
-    vm_region_and_address_infos = create_vms(region_pairs, run_id)
+    vm_region_and_address_infos = create_vms(region_pairs, run_id, machine_types)
     logging.info(vm_region_and_address_infos)
     do_tests(run_id, vm_region_and_address_infos)
     delete_vms(run_id, unique_regions(region_pairs))
+
 
 def __arrange_in_testbatches(
     regions_per_batch: Union[int, float],
@@ -42,7 +53,6 @@ def __arrange_in_testbatches(
     min_distance: Union[int, float],
     max_distance: Union[int, float],
 ) -> list[list[tuple[CloudRegion, CloudRegion]]]:
-
     if regions_per_batch < 2:
         raise ValueError(
             "Each batch of regions must have 2 or more regions for a meaningful test"
@@ -94,10 +104,11 @@ def __arrange_in_testbatches(
     )
     return batches_of_tests
 
+
 def __ascending_freq_keyfunc() -> Callable[[CloudRegion], int]:
     """:return a function that will allow sorting in ascending order of freq of appearance
     of a CloudRegion in post runs"""
-    results: list[dict] = load_past_results()
+    results: list[dict] = load_history()
     regions_from_results_src = [
         (get_region(d["from_cloud"], d["from_region"])) for d in results
     ]
@@ -115,7 +126,6 @@ def __ascending_freq_keyfunc() -> Callable[[CloudRegion], int]:
         return counts[region]
 
     return key_func
-
 
 
 def __sort_regions(regions: list[CloudRegion], interleave: bool):
@@ -158,7 +168,6 @@ def __make_test_batches(
     min_distance: Union[int, float],
     max_distance: Union[int, float],
 ):
-
     batches_of_tests = []
     for b in batches_of_regions:
         region_pairs = list(filter(lambda p: p[0] != p[1], product(b, b)))
@@ -193,11 +202,12 @@ def __make_test_batches(
         ]
         if len(region_pairs) != len_before_dist_filter:
             logging.info(
-                "Dropping %d region pairs that were outside the specified distance limits [%d,%d], leaving %d",
+                "Dropping %s region pairs that were outside the specified distance limits [%s,%s], leaving %s",
+                # Use %s not $d because could be inf
                 len_before_dist_filter - len(region_pairs),
                 min_distance,
                 max_distance,
-                len(region_pairs)
+                len(region_pairs),
             )
         if region_pairs:  # Might have not valid tests at this point
             batches_of_tests.append(region_pairs)
@@ -300,6 +310,14 @@ def __command_line_args():
         "\nThe parameter is ignored if --region_pairs is used.",
     )
 
+    parser.add_argument(
+        "--machine_types",
+        type=str,
+        default=default_machine_types,
+        help='\nMachine types to use for each cloud in the format "AWS,t3-nano,GCP,e2-micro".'
+        "\nYou can specify any and all clouds here. Where unspecified, the default for that cloud is used.",
+    )
+
     args = parser.parse_args()
 
     if args.cloud and args.clouds:
@@ -323,7 +341,26 @@ def __command_line_args():
     return args
 
 
-def setup_batches():
+def __parse_machine_types(machine_types) -> dict[Cloud, str]:
+    per_cloud = machine_types.split(";")
+    assert all(p.count(",") == 1 for p in per_cloud), (
+        'For machine_types, expect semicolon-separated pairs of comma-separated Cloud,machine-type, was "%s"'
+        % (machine_types)
+    )
+    splits = [p.split(",") for p in per_cloud]
+    return {Cloud(s[0]): s[1] for s in splits}
+
+
+def __machine_types_per_cloud(args) -> dict[Cloud, str]:
+    machine_types_dflt = __parse_machine_types(default_machine_types)
+    machine_types_from_args = __parse_machine_types(args.machine_types)
+    machine_types = machine_types_dflt | machine_types_from_args
+    return machine_types
+
+
+def setup_batches() -> tuple[
+    list[list[tuple[CloudRegion, CloudRegion]]], dict[Cloud, str]
+]:
     args = __command_line_args()
     if args.clouds:
         clouds = [
@@ -332,6 +369,7 @@ def setup_batches():
         ]
     else:
         clouds = []
+
     batches = __arrange_in_testbatches(
         parse_infinity(args.batch_size),
         parse_infinity(args.max_batches),
@@ -341,8 +379,8 @@ def setup_batches():
         args.min_distance,
         args.max_distance,
     )
+
     if not batches:
         logging.info("No tests to run that did not already succeeed")
         exit(0)
-    return batches
-
+    return batches, __machine_types_per_cloud(args)
