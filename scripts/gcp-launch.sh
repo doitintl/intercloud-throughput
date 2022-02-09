@@ -3,6 +3,8 @@ set -x
 set -e
 set -u
 
+echo $BASH_VERSION
+
 NAME="intercloud-${REGION}-${RUN_ID}"
 ZONE=${REGION}-b
 

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import pyplot
 from matplotlib.axes import Axes
+from matplotlib.collections import PathCollection
 from numpy.linalg import LinAlgError
 from scipy.stats import pearsonr
 
@@ -26,6 +27,8 @@ logging.basicConfig(
 )
 
 mega = 1e6
+bitrate_legend_loc = "upper right"
+avg_rtt_legend_loc = "upper left"
 
 
 def graph_full_testing_history():
@@ -100,37 +103,43 @@ def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
     logging.info("Generating charts in %s", subdir)
 
     Path(subdir).mkdir(parents=True, exist_ok=True)
-    i=0
+    i = 0
     for i, (cloudpair, data) in enumerate(clouddata.items()):
         __plot_figure(i, cloudpair, clouddata, subdir)
-    i+=1
+    i += 1
     __plot_figure(i, None, clouddata, subdir, multiplot=True)
 
     if platform.system() == "Darwin":
         subprocess.call(["open", subdir])
 
 
-def __plot_figure(count:int, cloudpair: Optional[tuple[Cloud, Cloud]] , clouddata:dict[Optional[tuple[Cloud, Cloud]]], subdir:str, multiplot:bool=False):
-    dist, avg_rtt, bitrate = [clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]]
+def __plot_figure(
+    count: int,
+    cloudpair: Optional[tuple[Cloud, Cloud]],
+    clouddata: dict[Optional[tuple[Cloud, Cloud]]],
+    subdir: str,
+    multiplot: bool = False,
+):
+    dist, avg_rtt, bitrate = [
+        clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
+    ]
 
     if not dist:  # No data
         return
 
     plt.figure(count)
     fig, base_ax = plt.subplots()
-    rtt_ax = base_ax
+    avg_rtt_ax = base_ax
     bitrate_ax = base_ax.twinx()
 
     plt.xlabel = "distance"
+
     if not multiplot:
-        __plot_2_series(dist, avg_rtt, bitrate, cloudpair, rtt_ax, bitrate_ax, multiplot, j=0)
+        _, _ = __plot_2_series(
+            dist, avg_rtt, bitrate, cloudpair, avg_rtt_ax, bitrate_ax, multiplot, j=0
+        )
     else:
-        assert not cloudpair# "None" value indicates all data
-        for j,(cloudpair_, cpair_data) in  enumerate( clouddata.items()):
-            dist, avg_rtt,bitrate =[ clouddata[cloudpair_][k] for k in ["distance", "avgrtt", "bitrate_Bps"]]
-            if not dist:
-                continue
-            __plot_2_series(dist, avg_rtt,  bitrate, cloudpair_,  rtt_ax, bitrate_ax,  multiplot,j)
+        __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot)
 
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
     chart_file = f"{subdir}/{__cloudpair_s(cloudpair, multiplot)}.png"
@@ -143,27 +152,64 @@ def __plot_figure(count:int, cloudpair: Optional[tuple[Cloud, Cloud]] , clouddat
     plt.show()
 
 
+def __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot):
+    avg_rtt_lines = []
+    bitrate_lines = []
+    labels = []
+    assert not cloudpair  # "None" value indicates all data
+    for j, (cloudpair_, cpair_data) in enumerate(clouddata.items()):
+        if cloudpair_ is None:
+            continue  # Don't plot the aggregated values in this disaggregated charg
+        dist, avg_rtt, bitrate = [
+            clouddata[cloudpair_][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
+        ]
+        if not dist:
+            continue
+        avg_rtt_line, bitrate_line = __plot_2_series(
+            dist, avg_rtt, bitrate, cloudpair_, avg_rtt_ax, bitrate_ax, multiplot, j
+        )
+        labels.append(f"{cloudpair_[0].name},{cloudpair_[1].name}")
+        avg_rtt_lines.append(avg_rtt_line)
+        bitrate_lines.append(bitrate_line)
 
-def __plot_2_series(dist:list, avg_rtt:list,bitrate:list, cloudpair:Optional[tuple[Cloud,Cloud]],
-                      rtt_ax, bitrate_ax,  multiplot:bool,j=0):
-    reds = ["red",  "firebrick",  "darkred", "orangered",'orange','yellow']
-    blues = ["blue", "mediumblue", "mediumslateblue", "lightsteelblue", "plum"]
-    __plot_series(
+        avg_rtt_ax.legend(avg_rtt_lines, labels, loc=avg_rtt_legend_loc)
+        bitrate_ax.legend(bitrate_lines, labels, loc=bitrate_legend_loc)
+        avg_rtt_ax.text(
+            0.28, 0.9, "avg rtt", transform=avg_rtt_ax.transAxes, fontsize=10
+        )
+        bitrate_ax.text(
+            0.65, 0.9, "bitrate", transform=bitrate_ax.transAxes, fontsize=10
+        )
+
+
+def __plot_2_series(
+    dist: list,
+    avg_rtt: list,
+    bitrate: list,
+    cloudpair: Optional[tuple[Cloud, Cloud]],
+    rtt_ax,
+    bitrate_ax,
+    multiplot: bool,
+    j=0,
+) -> PathCollection:
+    reds = ["red", "firebrick", "darkred", "orangered", "orange", "salmon"]
+    blues = ["blue", "mediumblue", "mediumslateblue", "lightsteelblue", "slateblue"]
+    avg_rtt_line = __plot_series(
         cloudpair,
         f"avg rtt",
         dist,
         avg_rtt,
         rtt_ax,
-        "upper left",
+        avg_rtt_legend_loc,
         reds[j],
         unit="seconds",
         bottom=0,
         top=300,
         semilogy=False,
         multiplot=multiplot,
-        marker="o"
+        marker="o",
     )
-    __plot_series(
+    bitrate_line = __plot_series(
         cloudpair,
         f"bitrate",
         dist,
@@ -176,17 +222,22 @@ def __plot_2_series(dist:list, avg_rtt:list,bitrate:list, cloudpair:Optional[tup
         top=10000,
         semilogy=True,
         multiplot=multiplot,
-        marker='+'
+        marker="o",
     )
+    return avg_rtt_line, bitrate_line
 
 
-def __cloudpair_s(cloudpair,multiplot=False):
+def __cloudpair_s(cloudpair, multiplot=False):
     if multiplot:
         assert not cloudpair
-        multiplot_s=" by cloud-pair"
+        multiplot_s = " by cloud-pair"
     else:
-        multiplot_s=""
-    return f"All Data{multiplot_s}" if cloudpair is None else f"{cloudpair[0]}-{cloudpair[1]}"
+        multiplot_s = ""
+    return (
+        f"All Data{multiplot_s}"
+        if cloudpair is None
+        else f"{cloudpair[0]}-{cloudpair[1]}"
+    )
 
 
 def __plot_series(
@@ -201,9 +252,9 @@ def __plot_series(
     bottom: int,
     top: int,
     semilogy: bool,
-        multiplot:bool,
-        marker:str
-):
+    multiplot: bool,
+    marker: str,
+) -> PathCollection:
 
     if semilogy:
         axis.set_yscale("log")
@@ -220,19 +271,19 @@ def __plot_series(
     )  # 20000 km is  half the circumf of earth, and the farthest pairs of data centers are 18000km
     axis.set_ylim(bottom, top)
 
-    axis.scatter(
+    line = axis.scatter(
         x,
         y,
         color=color,
         marker=marker,
+        s=3,
         label=f"{series_name}\n(r={round(corr, 2)})",
     )
+
     if not multiplot:
         axis.legend(loc=loc)
-
-    #__plot_linear_fit(axis, x, y, color, lbl=series_name, semilogy=semilogy)
-
-
+    # __plot_linear_fit(axis, x, y, color, lbl=series_name, semilogy=semilogy)
+    return line
 
 
 LinAlgError_counter = 0

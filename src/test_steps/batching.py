@@ -8,8 +8,12 @@ from typing import Union, Callable, Optional
 
 from cloud.aws_regions_enabled import is_nonenabled_auth_aws_region
 from cloud.clouds import Cloud, CloudRegion, get_regions, interregion_distance, get_region
-from history.attempted import without_already_succeeded
+from history.attempted import without_already_succeeded, write_attempted_tests
 from history.results import load_past_results
+from test_steps.create_vms import create_vms
+from test_steps.delete_vms import delete_vms
+from test_steps.do_test import do_tests
+from test_steps.utils import unique_regions
 
 from util.utils import chunks, parse_infinity
 
@@ -18,6 +22,16 @@ default_batch_sz = math.inf
 default_max_batches = math.inf
 default_min_distance = 0
 default_max_distance = math.inf
+
+def batch_setup_test_teardown(region_pairs: list[tuple[CloudRegion, CloudRegion]], run_id):
+    write_attempted_tests(region_pairs)
+    logging.info("Will test %s", region_pairs)
+
+    # VMs will still be cleaned up if launch or tests fail
+    vm_region_and_address_infos = create_vms(region_pairs, run_id)
+    logging.info(vm_region_and_address_infos)
+    do_tests(run_id, vm_region_and_address_infos)
+    delete_vms(run_id, unique_regions(region_pairs))
 
 def __arrange_in_testbatches(
     regions_per_batch: Union[int, float],
@@ -179,7 +193,7 @@ def __make_test_batches(
         ]
         if len(region_pairs) != len_before_dist_filter:
             logging.info(
-                "Dropping %d region pairs that were outside the specified distance limits [%s,%s], leaving",
+                "Dropping %d region pairs that were outside the specified distance limits [%d,%d], leaving %d",
                 len_before_dist_filter - len(region_pairs),
                 min_distance,
                 max_distance,

@@ -8,7 +8,7 @@ from util.utils import set_cwd
 
 
 def __combine():
-    groups = data_by_region()
+    groups = __data_by_region()
     geolocations = {}
     for region_name, data in groups.items():
 
@@ -93,7 +93,7 @@ def stats(pfx: str, vals: list[float]) -> dict[str, float]:
     return {k: round(v, 2) for k, v in d.items()}
 
 
-def data_by_region() -> dict[tuple[str, str], list[dict]]:
+def __data_by_region() -> dict[tuple[str, str], list[dict]]:
     def load_csv(fname):
         with open(fname) as f:
             return [r for r in (csv.DictReader(filter(lambda row: row[0] != "#", f)))]
