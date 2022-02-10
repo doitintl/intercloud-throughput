@@ -4,9 +4,10 @@ import os
 import platform
 import subprocess
 from datetime import datetime
-from math import log2
+from math import log10
 from os import mkdir
 from pathlib import Path
+from statistics import mean
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -32,7 +33,46 @@ bitrate_legend_loc = "upper right"
 avg_rtt_legend_loc = "upper left"
 
 
+def __statistics(results):
+    def extract(key):
+        return [r[key] for r in results]
+
+    return {
+        "distance": extract("distance"),
+        "bitrate_Bps": [r / mega for r in extract("bitrate_Bps")],
+        "avgrtt": extract("avgrtt"),
+    }
+
+
 def graph_full_testing_history():
+    clouddata = __prepare_data()
+    __log_mean_ratios(clouddata)
+
+    __plot_figures(clouddata)
+
+
+def __log_mean_ratios(clouddata):
+    multiplier=10000
+    avgrtt_s=f"Mean of {multiplier} log(bitrate)/dist\n"
+    bitrate_s="Mean of avg RTT/dist\n"
+    for cloudpair, data in clouddata.items():
+        dist = data["distance"]
+        bitrate = data["bitrate_Bps"]
+        avg_rtt = data["avgrtt"]
+
+        mean_bitrate = mean([log10(bitrate[i]) / dist[i] for i in range(len(dist)) if dist[i] != 0])
+
+        bitrate_s+= "\t%s: %s\n" % (
+              __cloudpair_s(cloudpair), round(multiplier * mean_bitrate, 1))
+
+        mean_avgrtt = mean([avg_rtt[j] / dist[j] for j in range(len(dist)) if dist[j] != 0])
+        avgrtt_s+= "\t%s: %s\n" % (
+              __cloudpair_s(cloudpair), round(1/  mean_avgrtt, 1))
+    logging.info("\n"+bitrate_s+"\n"+avgrtt_s)
+
+
+
+def __prepare_data():
     results = load_history()
     if not results:
         raise ValueError(
@@ -51,20 +91,16 @@ def graph_full_testing_history():
     )
     if not results:
         raise ValueError("No inter-zone results available")
-
     if len(results) < len_intra_and_interzone:
         logging.info(
             "Removed %d intrazone results", len(results) < len_intra_and_interzone
         )
-
     for result in results:
         result["distance"] = interregion_distance(
             get_region((result["from_cloud"]), result["from_region"]),
             get_region((result["to_cloud"]), result["to_region"]),
         )
-
     results.sort(key=lambda d: d["distance"])
-
     clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]] = {
         None: __statistics(results)
     }
@@ -82,36 +118,25 @@ def graph_full_testing_history():
         )
 
         clouddata[(from_cloud, to_cloud)] = __statistics(cloudpair_results)
-
     logging.info("Test distribution:\n" + s)
-    __plot(clouddata)
+    return clouddata
 
 
-def __statistics(results):
-    def extract(key):
-        return [r[key] for r in results]
-
-    return {
-        "distance": extract("distance"),
-        "bitrate_Bps": [r / mega for r in extract("bitrate_Bps")],
-        "avgrtt": extract("avgrtt"),
-    }
-
-
-def __plot(clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]):
+def __plot_figures(
+    data_by_cloudpair: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]
+):
     datetime_s = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
     subdir = os.path.abspath(f"{results_dir}/charts/{datetime_s}")
     logging.info("Generating charts in %s", subdir)
 
     Path(subdir).mkdir(parents=True, exist_ok=True)
     i = 0
-    for i, (cloudpair, data) in enumerate(clouddata.items()):
+    for i, (cloudpair, data) in enumerate(data_by_cloudpair.items()):
         if cloudpair is None:
-            __plot_figure(i, None, clouddata, subdir, multiplot=True)
+            # TODO The multiplot adds complexity as it sets up multiple code paths down the stack.
+            __plot_figure(i, None, data_by_cloudpair, subdir, multiplot=True)
         else:
-            __plot_figure(i, cloudpair, clouddata, subdir)
-
-
+            __plot_figure(i, cloudpair, data_by_cloudpair, subdir, multiplot=False)
 
     if platform.system() == "Darwin":
         subprocess.call(["open", subdir])
@@ -122,8 +147,16 @@ def __plot_figure(
     cloudpair: Optional[tuple[Cloud, Cloud]],
     clouddata: dict[Optional[tuple[Cloud, Cloud]]],
     subdir: str,
-    multiplot: bool = False,
+    multiplot: bool,
 ):
+    def cloudpair_s(cloudpair):
+
+        return (
+            f"All Data"
+            if cloudpair is None
+            else f"{cloudpair[0]}-{cloudpair[1]}"
+        )
+
     dist, avg_rtt, bitrate = [
         clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
     ]
@@ -139,14 +172,15 @@ def __plot_figure(
     plt.xlabel = "distance"
 
     if not multiplot:
-        _, _ = __plot_2_series(
+        _, _ = __plot_both_series(
             dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot, j=0
         )
     else:
-        __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot)
+        __multiplot_figure(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot)
 
-    plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
-    chart_file = f"{subdir}/{__cloudpair_s(cloudpair, multiplot)}.png"
+    plt.title(f"{cloudpair_s(cloudpair)}: Distance to latency & throughput")
+
+    chart_file = f"{subdir}/{cloudpair_s(cloudpair)}{'_by_cloud-pair' if multiplot else ''}.png"
     try:
         mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
@@ -156,7 +190,12 @@ def __plot_figure(
     plt.show()
 
 
-def __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot):
+def __cloudpair_s(cloudpair_:tuple[Cloud,Cloud])->str:
+    if cloudpair_ is None: return "All Data"
+    return f"{cloudpair_[0].name},{cloudpair_[1].name}"
+
+
+def __multiplot_figure(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot):
     avg_rtt_lines = []
     bitrate_lines = []
     labels = []
@@ -171,24 +210,24 @@ def __multiplot(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot):
         ]
         if not dist:
             continue
-        avg_rtt_line, bitrate_line = __plot_2_series(
+        avg_rtt_line, bitrate_line = __plot_both_series(
             dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot, j
         )
-        labels.append(f"{cloudpair_[0].name},{cloudpair_[1].name}")
+        labels.append(__cloudpair_s(cloudpair_))
         avg_rtt_lines.append(avg_rtt_line)
         bitrate_lines.append(bitrate_line)
 
         avg_rtt_ax.legend(avg_rtt_lines, labels, loc=avg_rtt_legend_loc)
         bitrate_ax.legend(bitrate_lines, labels, loc=bitrate_legend_loc)
         avg_rtt_ax.text(
-            0.28, 0.9, "avg rtt", transform=avg_rtt_ax.transAxes, fontsize=10
+            0.28, 0.9, "avg RTT", transform=avg_rtt_ax.transAxes, fontsize=10
         )
         bitrate_ax.text(
             0.65, 0.9, "bitrate", transform=bitrate_ax.transAxes, fontsize=10
         )
 
 
-def __plot_2_series(
+def __plot_both_series(
     dist: list,
     avg_rtt: list,
     bitrate: list,
@@ -201,7 +240,7 @@ def __plot_2_series(
     blues = ["darkblue", "navy", "mediumslateblue", "lightsteelblue", "slateblue"]
 
     avg_rtt_line = __plot_series(
-        f"avg rtt",
+        "avg RTT",
         dist,
         avg_rtt,
         rtt_ax,
@@ -231,20 +270,6 @@ def __plot_2_series(
     return avg_rtt_line, bitrate_line
 
 
-def __cloudpair_s(cloudpair, multiplot=False):
-    if multiplot:
-        assert not cloudpair
-        multiplot_s = " by cloud-pair"
-    else:
-        multiplot_s = ""
-
-    return (
-        f"All Data{multiplot_s}"
-        if cloudpair is None
-        else f"{cloudpair[0]}-{cloudpair[1]}"
-    )
-
-
 def __plot_series(
     series_name: str,
     x: list,
@@ -262,7 +287,7 @@ def __plot_series(
     if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"
-        corr, _ = pearsonr(x, [log2(i) for i in y])
+        corr, _ = pearsonr(x, [log10(i) for i in y])
     else:
         ylabel = unit
         corr, _ = pearsonr(x, y)

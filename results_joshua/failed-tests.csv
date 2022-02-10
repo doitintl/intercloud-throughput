@@ -646,3 +646,4 @@ timestamp,from_cloud,from_region,to_cloud,to_region
 2022-02-09T18:28:31.257280Z,AWS,eu-north-1,GCP,us-west1
 2022-02-09T18:30:45.819623Z,AWS,ap-southeast-1,GCP,europe-central2
 2022-02-09T18:31:44.499994Z,AWS,ap-south-1,GCP,asia-northeast1
+2022-02-09T19:03:24.333897Z,AWS,us-west-2,GCP,europe-north1

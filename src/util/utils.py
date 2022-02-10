@@ -8,6 +8,8 @@ from threading import Lock
 from time import time
 from typing import Union
 
+import numpy as np
+
 from util import subprocesses
 
 __gcp_default = None
@@ -101,3 +103,7 @@ def parse_infinity(a: str) -> Union[int, float]:
         return math.inf
     else:
         return int(a)
+
+def geo_mean(iterable):
+        a = np.array(iterable)
+        return a.prod() ** (1.0 / len(a))
