@@ -1920,3 +1920,9 @@ timestamp,from_cloud,from_region,to_cloud,to_region
 2022-02-09T18:42:57.258952Z,GCP,asia-east1,AWS,ap-southeast-2
 2022-02-09T18:42:57.258954Z,GCP,asia-east1,AWS,ap-southeast-1
 2022-02-09T18:42:57.258955Z,GCP,asia-east1,AWS,ap-south-1
+2022-02-11T10:16:17.522797Z,AWS,us-east-1,GCP,us-east1
+2022-02-11T10:20:57.760283Z,AWS,us-east-1,GCP,us-east1
+2022-02-11T10:21:13.652099Z,AWS,us-east-1,GCP,us-east1
+2022-02-11T10:21:54.070703Z,AWS,us-east-1,GCP,us-east1
+2022-02-11T10:22:20.411076Z,AWS,us-east-1,GCP,us-east1
+2022-02-11T10:27:34.440021Z,GCP,us-east1,GCP,us-east1

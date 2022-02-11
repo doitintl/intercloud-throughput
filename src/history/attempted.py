@@ -3,7 +3,7 @@ import logging
 import os.path
 from pathlib import Path
 
-from cloud.clouds import CloudRegion, get_region
+from cloud.clouds import CloudRegion, get_region, Cloud
 from history.results import load_history, results_dir
 from util.utils import date_s
 
@@ -44,16 +44,17 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     )
 
 
-def write_missing_regions(*missing_regions: list[CloudRegion]):
+def write_missing_regions(missing_regions: list[CloudRegion], machine_types:dict[Cloud, str]):
     output_filename = f"{results_dir}/failed-to-create-vm.csv"
     write_hdr = not os.path.exists(output_filename)
 
     with open(output_filename, "a") as f:
         if write_hdr:
-            f.write(",".join(["timestamp", "cloud", "region"]) + "\n")
+            f.write(",".join(["timestamp", "cloud", "region", "vm_type"]) + "\n")
         r: CloudRegion
         for r in missing_regions:
-            entry = f"{date_s()},{r.cloud},{r.region_id}\n"
+            machine_type=machine_types[r.cloud]
+            entry = f"{date_s()},{r.cloud},{r.region_id},{machine_type}\n"
             f.write(entry)
 
 

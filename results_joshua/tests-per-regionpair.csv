@@ -1160,3 +1160,4 @@ count,from_cloud,from_region,to_cloud,to_region
 1,AWS,ap-northeast-1,GCP,europe-west2
 1,AWS,ap-northeast-3,GCP,us-east4
 1,GCP,us-west1,AWS,ap-southeast-2
+1,AWS,us-east-1,GCP,us-east1

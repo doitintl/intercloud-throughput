@@ -52,24 +52,28 @@ def graph_full_testing_history():
 
 
 def __log_mean_ratios(clouddata):
-    multiplier=10000
-    avgrtt_s=f"Mean of {multiplier} log(bitrate)/dist\n"
-    bitrate_s="Mean of avg RTT/dist\n"
+    bitrate_multiplier = 10000
+    avgrtt_s = f"Mean of {bitrate_multiplier} log(bitrate)/dist\n"
+    bitrate_s = "Mean of avg RTT/dist\n"
     for cloudpair, data in clouddata.items():
         dist = data["distance"]
         bitrate = data["bitrate_Bps"]
         avg_rtt = data["avgrtt"]
 
-        mean_bitrate = mean([log10(bitrate[i]) / dist[i] for i in range(len(dist)) if dist[i] != 0])
+        mean_bitrate = mean(
+            [log10(bitrate[i]) / dist[i] for i in range(len(dist)) if dist[i] != 0]
+        )
 
-        bitrate_s+= "\t%s: %s\n" % (
-              __cloudpair_s(cloudpair), round(multiplier * mean_bitrate, 1))
+        bitrate_s += "\t%s: %s\n" % (
+            __cloudpair_s(cloudpair),
+            round(bitrate_multiplier * mean_bitrate, 1),
+        )
 
-        mean_avgrtt = mean([avg_rtt[j] / dist[j] for j in range(len(dist)) if dist[j] != 0])
-        avgrtt_s+= "\t%s: %s\n" % (
-              __cloudpair_s(cloudpair), round(1/  mean_avgrtt, 1))
-    logging.info("\n"+bitrate_s+"\n"+avgrtt_s)
-
+        mean_avgrtt = mean(
+            [avg_rtt[j] / dist[j] for j in range(len(dist)) if dist[j] != 0]
+        )
+        avgrtt_s += "\t%s: %s\n" % (__cloudpair_s(cloudpair), round(1 / mean_avgrtt, 1))
+    logging.info("\n" + bitrate_s + "\n" + avgrtt_s)
 
 
 def __prepare_data():
@@ -130,7 +134,7 @@ def __plot_figures(
     logging.info("Generating charts in %s", subdir)
 
     Path(subdir).mkdir(parents=True, exist_ok=True)
-    i = 0
+
     for i, (cloudpair, data) in enumerate(data_by_cloudpair.items()):
         if cloudpair is None:
             # TODO The multiplot adds complexity as it sets up multiple code paths down the stack.
@@ -149,13 +153,8 @@ def __plot_figure(
     subdir: str,
     multiplot: bool,
 ):
-    def cloudpair_s(cloudpair):
-
-        return (
-            f"All Data"
-            if cloudpair is None
-            else f"{cloudpair[0]}-{cloudpair[1]}"
-        )
+    def cloudpair_s(pair):
+        return f"All Data" if pair is None else f"{pair[0]}-{pair[1]}"
 
     dist, avg_rtt, bitrate = [
         clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
@@ -180,7 +179,9 @@ def __plot_figure(
 
     plt.title(f"{cloudpair_s(cloudpair)}: Distance to latency & throughput")
 
-    chart_file = f"{subdir}/{cloudpair_s(cloudpair)}{'_by_cloud-pair' if multiplot else ''}.png"
+    chart_file = (
+        f"{subdir}/{cloudpair_s(cloudpair)}{'_by_cloud-pair' if multiplot else ''}.png"
+    )
     try:
         mkdir(os.path.dirname(os.path.realpath(chart_file)))
     except FileExistsError:
@@ -190,8 +191,9 @@ def __plot_figure(
     plt.show()
 
 
-def __cloudpair_s(cloudpair_:tuple[Cloud,Cloud])->str:
-    if cloudpair_ is None: return "All Data"
+def __cloudpair_s(cloudpair_: tuple[Cloud, Cloud]) -> str:
+    if cloudpair_ is None:
+        return "All Data"
     return f"{cloudpair_[0].name},{cloudpair_[1].name}"
 
 
@@ -319,6 +321,7 @@ LinAlgError_counter = 0
 
 def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, semilogy=False):
     dist_np = np.array(dist)
+
     y_np = np.array(y)
     try:
 

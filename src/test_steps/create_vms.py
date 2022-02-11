@@ -3,7 +3,7 @@ import threading
 from typing import Optional
 
 from cloud.clouds import CloudRegion, Cloud
-from history.attempted import write_missing_regions
+from history.attempted import write_missing_regions, write_failed_test
 from test_steps.utils import env_for_singlecloud_subprocess, unique_regions
 from util.subprocesses import run_subprocess
 from util.utils import dedup, thread_timeout, Timer
@@ -89,23 +89,51 @@ def create_vms(
             thread.join(timeout=thread_timeout)
             if thread.is_alive():
                 logging.info("%s timed out", thread.name)
-            logging.info('create_vm in "%s" done', thread.name)
 
         if not vm_region_and_address_infos:
             logging.error("No VMs were created")
 
         regionwithvm_pairs = __arrange_vms_by_region(
-            region_pairs_, vm_region_and_address_infos
-        )
+            region_pairs_, vm_region_and_address_infos)
 
+        __log_failure_to_create_vm(regionwithvm_pairs,machine_types)
         return regionwithvm_pairs
 
 
-def find_regions_lacking_a_vm(
+def __log_failure_to_create_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],  machine_types:dict[Cloud, str]):
+    region_pairs_missing_a_vm = regionpairs_lacking_a_vm(regionwithvm_pairs)
+    for fail_before_start in region_pairs_missing_a_vm:
+        src_, dst_ = fail_before_start[0][0], fail_before_start[1][0]
+        logging.error(
+            "Failed because or more VMs was unavailable: Test %s,%s", src_, dst_
+        )
+        write_failed_test(src_, dst_)
+    missing_regions = region_with_failed_vm(regionwithvm_pairs)
+    if missing_regions:
+        logging.info(
+            "%d regions where no VM was successfully created %s",
+            len(missing_regions),
+            missing_regions,
+        )
+        write_missing_regions(missing_regions,  machine_types )
+
+
+def regionpairs_lacking_a_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]:
+    return __regionpair_vm_success(regionwithvm_pairs)[0]
+
+def regionpairs_with_both_vms(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]:
+    return __regionpair_vm_success(regionwithvm_pairs)[1]
+
+def region_with_failed_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[CloudRegion]:
+    return __regionpair_vm_success(regionwithvm_pairs)[2]
+
+
+def __regionpair_vm_success(
     regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]
 ) -> tuple[
     list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],
     list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],
+    list[CloudRegion]
 ]:
     missing_regions = []
 
@@ -127,13 +155,7 @@ def find_regions_lacking_a_vm(
             both_vms_exist.append(regionwithvm_pair)
 
     missing_regions = dedup(missing_regions)
-    if missing_regions:
-        logging.info(
-            "%d regions where no VM was successfully created %s",
-            len(missing_regions),
-            missing_regions,
-        )
-        write_missing_regions(*missing_regions)
 
     logging.info("%d tests where both VMs successfully created", len(both_vms_exist))
-    return both_vms_exist, missing_one_or_more_vms
+
+    return missing_one_or_more_vms, both_vms_exist, missing_regions

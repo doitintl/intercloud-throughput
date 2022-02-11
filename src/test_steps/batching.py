@@ -324,9 +324,10 @@ def __command_line_args():
         raise ValueError("Cannot specify both --cloud and --clouds")
 
     if (
-        True
-        == bool(args.region_pairs)
-        == bool(
+
+        bool(args.region_pairs)
+        and
+        bool(
             args.max_batches != default_max_batches
             or args.batch_size != default_batch_sz
             or args.min_distance != default_min_distance
@@ -344,8 +345,8 @@ def __command_line_args():
 def __parse_machine_types(machine_types) -> dict[Cloud, str]:
     per_cloud = machine_types.split(";")
     assert all(p.count(",") == 1 for p in per_cloud), (
-        'For machine_types, expect semicolon-separated pairs of comma-separated Cloud,machine-type, was "%s"'
-        % (machine_types)
+        f'For machine_types, expect semicolon-separated pairs of '
+        f'comma-separated Cloud,machine-type, was "%s" machine_types'
     )
     splits = [p.split(",") for p in per_cloud]
     return {Cloud(s[0]): s[1] for s in splits}

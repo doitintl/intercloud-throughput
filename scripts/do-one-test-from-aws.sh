@@ -6,8 +6,6 @@ set -u
 export SG=intercloud
 
 
-# Check that variables are set
-
 CLIENT_REGION_KEYNAME=${BASE_KEYNAME}-${CLIENT_REGION}
 CLIENT_REGION_KEYFILE=./aws-pems/${CLIENT_REGION_KEYNAME}.pem
 

@@ -3,7 +3,6 @@ set -x
 set -e
 set -u
 
-
 NAME="intercloud-${REGION}-${RUN_ID}"
 ZONE=${REGION}-b
 

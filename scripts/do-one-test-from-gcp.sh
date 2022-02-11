@@ -4,7 +4,6 @@ set -x
 set -e
 set -u
 
-# Check that variables are set
 
 IPERF_OUTPUT=""
 

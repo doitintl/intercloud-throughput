@@ -10,7 +10,8 @@ from history.results import (
     combine_results,
     analyze_test_count,
 )
-from test_steps.create_vms import find_regions_lacking_a_vm
+from test_steps.create_vms import regionpairs_with_both_vms
+
 from util.subprocesses import run_subprocess
 from util.utils import thread_timeout, Timer
 
@@ -88,16 +89,7 @@ def do_tests(
     ],
 ):
     with Timer("do_tests"):
-        (
-            region_pairs_with_valid_vms,
-            region_pairs_missing_a_vm,
-        ) = find_regions_lacking_a_vm(region_with_vminfo_pairs)
-        for fail_before_start in region_pairs_missing_a_vm:
-            src_, dst_ = fail_before_start[0][0], fail_before_start[1][0]
-            logging.error(
-                "Failed because or more VMs was unavailable: Test %s,%s", src_, dst_
-            )
-            write_failed_test(src_, dst_)
+        region_pairs_with_valid_vms          = regionpairs_with_both_vms(region_with_vminfo_pairs)
 
         threads = []
 
@@ -117,7 +109,6 @@ def do_tests(
             thread.join(timeout=thread_timeout)
             if thread.is_alive():
                 logging.info("%s timed out", thread.name)
-            logging.info('Test "%s" done', thread.name)
 
         combine_results(run_id)
         analyze_test_count()

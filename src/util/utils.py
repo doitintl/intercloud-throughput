@@ -104,6 +104,7 @@ def parse_infinity(a: str) -> Union[int, float]:
     else:
         return int(a)
 
+
 def geo_mean(iterable):
-        a = np.array(iterable)
-        return a.prod() ** (1.0 / len(a))
+    a = np.array(iterable)
+    return a.prod() ** (1.0 / len(a))

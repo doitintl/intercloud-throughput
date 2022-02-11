@@ -52,7 +52,6 @@ def __delete_aws_vms(run_id, regions):
             del_one_aws_region_thread.join(timeout=thread_timeout)
             if del_one_aws_region_thread.is_alive():
                 logging.info("%s timed out", del_one_aws_region_thread.name)
-            logging.info("Deletion %s done", del_one_aws_region_thread.name)
 
 
 def __delete_gcp_vms(run_id, regions):

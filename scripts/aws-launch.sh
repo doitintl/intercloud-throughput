@@ -3,13 +3,9 @@ set -x
 set -e
 set -u
 
-# Check that variables are set
-
-
 SG=intercloud-sg
 
 INIT_SCRIPT=aws-install-and-run-iperf-server.sh
-
 
 NAME="${REGION}-${RUN_ID}"
 REGION_KEYNAME=${BASE_KEYNAME}-${REGION}
