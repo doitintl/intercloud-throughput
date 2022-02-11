@@ -1,0 +1,7 @@
+timestamp,cloud,region,vm_type
+2022-02-07T20:11:56.585655Z,GCP,us-east4,e2-small
+2022-02-07T20:11:56.585678Z,AWS,sa-east-1,t3.nano
+2022-02-11T10:20:58.088309Z,AWS,us-east-1,
+2022-02-11T10:20:58.088314Z,GCP,us-east1,
+2022-02-11T10:21:54.460824Z,AWS,us-east-1,t3.nano
+2022-02-11T10:21:54.460828Z,GCP,us-east1,e2-small
