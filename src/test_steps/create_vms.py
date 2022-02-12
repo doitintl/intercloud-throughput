@@ -67,7 +67,7 @@ def create_vms(
         regions_dedup = unique_regions(region_pairs_)
         logging.info(
             "Will launch  VMs of types %s in %s regions: %s",
-            machine_types,
+            "; ".join(f"{c.name}:{t}" for c, t in machine_types.items()),
             len(regions_dedup),
             regions_dedup,
         )
