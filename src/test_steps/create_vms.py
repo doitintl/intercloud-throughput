@@ -2,7 +2,7 @@ import logging
 import threading
 from typing import Optional
 
-from cloud.clouds import CloudRegion, Cloud
+from cloud.clouds import Region, Cloud
 from history.attempted import write_missing_regions, write_failed_test
 from test_steps.utils import env_for_singlecloud_subprocess, unique_regions
 from util.subprocesses import run_subprocess
@@ -11,12 +11,12 @@ from util.utils import dedup, thread_timeout, Timer
 
 def __create_vm(
     run_id_: str,
-    cloud_region_: CloudRegion,
-    vm_region_and_address_infos_inout: dict[CloudRegion, dict],
+    cloud_region_: Region,
+    vm_region_and_address_infos_inout: dict[Region, dict],
     machine_type=str,
 ):
     with Timer(f"__create_vm: {cloud_region_}"):
-        logging.info("Will launch a VM in %s", cloud_region_)
+        logging.info("will launch a VM in %s", cloud_region_)
         env = env_for_singlecloud_subprocess(run_id_, cloud_region_)
         env["MACHINE_TYPE"] = machine_type
         process_stdout = run_subprocess(cloud_region_.script(), env)
@@ -39,11 +39,9 @@ def __create_vm(
 
 
 def __arrange_vms_by_region(
-    regions_pairs: list[tuple[CloudRegion, CloudRegion]],
-    region_to_vminfo: dict[CloudRegion, dict],
-) -> list[
-    tuple[tuple[CloudRegion, Optional[dict]], tuple[CloudRegion, Optional[dict]]]
-]:
+    regions_pairs: list[tuple[Region, Region]],
+    region_to_vminfo: dict[Region, dict],
+) -> list[tuple[tuple[Region, Optional[dict]], tuple[Region, Optional[dict]]]]:
     ret = []
     for pair in regions_pairs:
         src = pair[0]
@@ -55,25 +53,23 @@ def __arrange_vms_by_region(
 
 
 def create_vms(
-    region_pairs_: list[tuple[CloudRegion, CloudRegion]],
+    region_pairs_: list[tuple[Region, Region]],
     run_id: str,
     machine_types: dict[Cloud, str],
-) -> list[
-    tuple[tuple[CloudRegion, Optional[dict]], tuple[CloudRegion, Optional[dict]]]
-]:
+) -> list[tuple[tuple[Region, Optional[dict]], tuple[Region, Optional[dict]]]]:
     with Timer("create_vms"):
         vm_region_and_address_infos = {}
         threads = []
         regions_dedup = unique_regions(region_pairs_)
         logging.info(
-            "Will launch  VMs of types %s in %s regions: %s",
+            "VMs of types %s in %s regions: %s",
             "; ".join(f"{c.name}:{t}" for c, t in machine_types.items()),
             len(regions_dedup),
             regions_dedup,
         )
         for cloud_region in regions_dedup:
             thread = threading.Thread(
-                name=f"create-{cloud_region}",
+                name=f"thread-create-{cloud_region}",
                 target=__create_vm,
                 args=(
                     run_id,
@@ -94,13 +90,17 @@ def create_vms(
             logging.error("No VMs were created")
 
         regionwithvm_pairs = __arrange_vms_by_region(
-            region_pairs_, vm_region_and_address_infos)
+            region_pairs_, vm_region_and_address_infos
+        )
 
-        __log_failure_to_create_vm(regionwithvm_pairs,machine_types)
+        __log_failure_to_create_vm(regionwithvm_pairs, machine_types)
         return regionwithvm_pairs
 
 
-def __log_failure_to_create_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],  machine_types:dict[Cloud, str]):
+def __log_failure_to_create_vm(
+    regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]],
+    machine_types: dict[Cloud, str],
+):
     region_pairs_missing_a_vm = regionpairs_lacking_a_vm(regionwithvm_pairs)
     for fail_before_start in region_pairs_missing_a_vm:
         src_, dst_ = fail_before_start[0][0], fail_before_start[1][0]
@@ -115,32 +115,38 @@ def __log_failure_to_create_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion,
             len(missing_regions),
             missing_regions,
         )
-        write_missing_regions(missing_regions,  machine_types )
+        write_missing_regions(missing_regions, machine_types)
 
 
-def regionpairs_lacking_a_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]:
+def regionpairs_lacking_a_vm(
+    regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
+) -> list[tuple[tuple[Region, dict], tuple[Region, dict]]]:
     return __regionpair_vm_success(regionwithvm_pairs)[0]
 
-def regionpairs_with_both_vms(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]:
+
+def regionpairs_with_both_vms(
+    regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
+) -> list[tuple[tuple[Region, dict], tuple[Region, dict]]]:
     return __regionpair_vm_success(regionwithvm_pairs)[1]
 
-def region_with_failed_vm(regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]])->list[CloudRegion]:
+
+def region_with_failed_vm(
+    regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
+) -> list[Region]:
     return __regionpair_vm_success(regionwithvm_pairs)[2]
 
 
 def __regionpair_vm_success(
-    regionwithvm_pairs: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]
+    regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
 ) -> tuple[
-    list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],
-    list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]],
-    list[CloudRegion]
+    list[tuple[tuple[Region, dict], tuple[Region, dict]]],
+    list[tuple[tuple[Region, dict], tuple[Region, dict]]],
+    list[Region],
 ]:
     missing_regions = []
 
-    both_vms_exist: list[tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]]
-    missing_one_or_more_vms: list[
-        tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
-    ]
+    both_vms_exist: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
+    missing_one_or_more_vms: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
     both_vms_exist = []
     missing_one_or_more_vms = []
     for regionwithvm_pair in regionwithvm_pairs:

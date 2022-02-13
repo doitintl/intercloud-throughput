@@ -2,7 +2,7 @@ import json
 import logging
 import os
 
-from cloud.clouds import CloudRegion, Cloud
+from cloud.clouds import Region, Cloud
 from util.subprocesses import run_subprocess
 
 __cache_ = {}
@@ -23,7 +23,7 @@ def __cache():
             d = {k: v for k, v in d.items() if not k.startswith("__")}
             __cache_ = d
             logging.info(
-                "Loaded supported AWS Regions as %s",
+                "Supported AWS Regions as %s",
                 __cache_,
             )
 
@@ -42,7 +42,7 @@ def __add_to_cache(r: str, is_supported: bool):
         json.dump(__cache_, f, indent=2)
 
 
-def is_nonenabled_auth_aws_region(r: CloudRegion):
+def is_nonenabled_auth_aws_region(r: Region):
     if r.cloud != Cloud.AWS:
         return False
 

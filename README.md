@@ -32,25 +32,33 @@ single cloud.
     * By default, the system will launch a VM in each region (so, about 47 VMs),  
       then test all directed pairs (source and destination) among these VMs.
     * The number of total tests is of course _O(n<sup>2</sup>)_),where _n_ is the number of regions.
-    * However, the number of VMs is as the number of regions. Tests are run between all reahe most efficent tests
-    * Already-run test-pairs (as in `results.csv`) are not re-run.
-    * Intraregion tests, where the source and destination were the same region, are omitted.
+    * The number of VMs is as the number of regions. Tests are run between all reahe most efficent tests
+    * Omitted: Already-run test-pairs (as in `results.csv`) are not re-run. This allows you to run the process
+    in several smaller runs, using the options below.
+    * Omitted: Intraregion tests, where the source and destination were the same region, are not run. 
+    However, you can specify
+    these using `--region_pairs` (see below).
+    * Prioritization: Where not all possible regions are used (as with options, below, the system will
+    interleave the different clouds in the priority list, to get intercloud tests first; and will
+    choose the least-tested regions, to spread out the testing.)
 
 * Options
-    * You can specify exactly which region-pairs to test (source and destination datacenters, whether either can be in
+    * You can specify exactly which region-pairs to test (source and destination data-centers, whether either can be in
       AWS or in GCP).
     * Other options limit the regions-pairs that may be tested, but do not specify the exact list. You can run this
       repeatedly, accumulating more data in `results.csv`.
         * You can limit the number of regions tested in a "batch"  (in parallel).
         * You can limit the number of such batches.
         * You can limit which cloud-pairs can be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP)
-        * You can limit the minimum, and maximum distance between source and destinationd datacenter, e.g. if you want
+        * You can limit the minimum and maximum distance between source and destinationd data-center, e.g. if you want
           to focus on long-distance networking.
 
 * Costs
-    * Ultracheap are used, for an average price of about 0.8 cents per VM per hour.
-    * Since each stage is fully parallelized, even a full test takes ten minutes.
-    * Thus, the total price for a full test run is around 10 cents.
+    * Launching an instance in every region does not cost much: These small
+    instances cost 0.5 - 2 cents per hour. 
+    * Because of parallelization, the test suite runs quickly
+    * Data volume is  10 MB per test. 
+    * This keeps down the compute and data egress charges.
 
 ## Output
 
@@ -64,6 +72,18 @@ single cloud.
     * `failed-tests.csv` lists failed tests, whether because a VM could not be created or because a connection could not
       be made between VMs in the different regions.
     * `tests-per-regionpair.csv` tracks the number of tests per region pair (so we can see if there were repeats).
+
+
+## How it works
+
+* Launches a VM in each specified region. See above on how regions are chosen.
+  * This is parallelized.
+* Runs a test between each directed region pair, in parallel. In general, all pairs across 
+regions where there is a VM are used, though you can also specific this with the `--region_pairs` option.
+  * This is parallelized, but  a given region is involved in only
+  one test at any one time, to avoid disrupting the results. A queue is used for that.
+* Deletes all VMs (even if some tests fail).
+  * AWS VMs are deletd in parallel, GCP VMs sequentially. 
 
 ## Generating charts
 

@@ -3,13 +3,9 @@ import logging
 
 from graph.plot_chart import graph_full_testing_history
 from test_steps import batching
-from util.utils import set_cwd, random_id, Timer, date_s
+from util.utils import set_cwd, random_id, Timer, date_s, init_logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-)
+init_logger()
 
 
 def main():

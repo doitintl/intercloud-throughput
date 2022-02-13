@@ -6,16 +6,12 @@ import os
 import shutil
 from typing import Optional
 
-from cloud.clouds import CloudRegion
-from util.utils import set_cwd
+from cloud.clouds import Region
+from util.utils import set_cwd, init_logger
 
 perftest_resultsdir_envvar = "PERFTEST_RESULTSDIR"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-)
+init_logger()
 
 results_dir = os.environ.get(perftest_resultsdir_envvar, "./results")
 try:
@@ -35,7 +31,7 @@ def __results_file():
 
 
 def write_results_for_run(
-    result_j, run_id: str, src_region_: CloudRegion, dst_region_: CloudRegion
+    result_j, run_id: str, src_region_: Region, dst_region_: Region
 ):
     try:
         os.mkdir(__results_dir_for_run(run_id))
@@ -139,7 +135,7 @@ def analyze_test_count():
     dicts = load_history()
     if not dicts:
         logging.info(
-            "No previous results found. You may need to check the   %s env variable",
+            "No previous results found. You may need to check the %s env variable",
             perftest_resultsdir_envvar,
         )
     else:

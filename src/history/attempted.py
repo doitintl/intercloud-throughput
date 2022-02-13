@@ -3,7 +3,7 @@ import logging
 import os.path
 from pathlib import Path
 
-from cloud.clouds import CloudRegion, get_region, Cloud
+from cloud.clouds import Region, get_region, Cloud
 from history.results import load_history, results_dir
 from util.utils import date_s
 
@@ -13,8 +13,8 @@ def __attempted_tests_csv_file():
 
 
 def without_already_succeeded(
-    region_pairs: list[tuple[CloudRegion, CloudRegion]]
-) -> list[tuple[CloudRegion, CloudRegion]]:
+    region_pairs: list[tuple[Region, Region]]
+) -> list[tuple[Region, Region]]:
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_history())
     already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(
         __already_attempted()
@@ -44,21 +44,23 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
     )
 
 
-def write_missing_regions(missing_regions: list[CloudRegion], machine_types:dict[Cloud, str]):
+def write_missing_regions(
+    missing_regions: list[Region], machine_types_: dict[Cloud, str]
+):
     output_filename = f"{results_dir}/failed-to-create-vm.csv"
     write_hdr = not os.path.exists(output_filename)
 
     with open(output_filename, "a") as f:
         if write_hdr:
             f.write(",".join(["timestamp", "cloud", "region", "vm_type"]) + "\n")
-        r: CloudRegion
+        r: Region
         for r in missing_regions:
-            machine_type=machine_types[r.cloud]
+            machine_type = machine_types_[r.cloud]
             entry = f"{date_s()},{r.cloud},{r.region_id},{machine_type}\n"
             f.write(entry)
 
 
-def write_failed_test(src: CloudRegion, dst: CloudRegion):
+def write_failed_test(src: Region, dst: Region):
     output_filename = f"{results_dir}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
@@ -75,20 +77,20 @@ def write_failed_test(src: CloudRegion, dst: CloudRegion):
         f.write(entry)
 
 
-def write_attempted_tests(
-    region_pairs_about_to_try: list[tuple[CloudRegion, CloudRegion]]
-):
+def write_attempted_tests(region_pairs_about_to_try: list[tuple[Region, Region]], machine_types):
     attempts = __already_attempted()
     for pair in region_pairs_about_to_try:
-        attempts.append(
-            {
-                "timestamp": date_s(),
-                "from_cloud": pair[0].cloud,
-                "from_region": pair[0].region_id,
-                "to_cloud": pair[1].cloud,
-                "to_region": pair[1].region_id,
-            }
-        )
+        d = {
+            "timestamp": date_s(),
+            "from_cloud": pair[0].cloud,
+            "from_region": pair[0].region_id,
+            "to_cloud": pair[1].cloud,
+            "to_region": pair[1].region_id,
+        }
+        for c in Cloud:
+            d[f"{c.name.lower()}_vm"] = machine_types.get(c)
+
+        attempts.append(d )
 
     if attempts:
         keys = list(attempts[0].keys())

@@ -9,7 +9,7 @@ from typing import Union, Callable, Optional
 from cloud.aws_regions_enabled import is_nonenabled_auth_aws_region
 from cloud.clouds import (
     Cloud,
-    CloudRegion,
+    Region,
     get_regions,
     interregion_distance,
     get_region,
@@ -22,20 +22,20 @@ from test_steps.do_test import do_tests
 from test_steps.utils import unique_regions
 from util.utils import chunks, parse_infinity
 
-default_batch_sz = math.inf
-default_max_batches = math.inf
+default_batch_size = math.inf
+default_max_batches = 1
 default_min_distance = 0
 default_max_distance = math.inf
 default_machine_types = "AWS,t3.nano;GCP,e2-small"
 
 
 def batch_setup_test_teardown(
-    region_pairs: list[tuple[CloudRegion, CloudRegion]],
+    region_pairs: list[tuple[Region, Region]],
     run_id,
     machine_types: dict[Cloud, str],
 ):
-    write_attempted_tests(region_pairs)
-    logging.info("Will test %s", region_pairs)
+    write_attempted_tests(region_pairs, machine_types)
+    logging.info("Tests: %s", region_pairs)
 
     # VMs will still be cleaned up if launch or tests fail
     vm_region_and_address_infos = create_vms(region_pairs, run_id, machine_types)
@@ -49,10 +49,10 @@ def __arrange_in_testbatches(
     max_batches: Union[int, float],
     cloud: Cloud,
     cloudpairs: list[tuple[Cloud, Cloud]],
-    preselected_region_pairs: list[tuple[CloudRegion, CloudRegion]],
+    preselected_region_pairs: list[tuple[Region, Region]],
     min_distance: Union[int, float],
     max_distance: Union[int, float],
-) -> list[list[tuple[CloudRegion, CloudRegion]]]:
+) -> list[list[tuple[Region, Region]]]:
     if regions_per_batch < 2:
         raise ValueError(
             "Each batch of regions must have 2 or more regions for a meaningful test"
@@ -69,13 +69,13 @@ def __arrange_in_testbatches(
         regions = __sort_regions(regions, bool(cloudpairs))
         batches_of_regions = list(chunks(regions, regions_per_batch))
 
-        batches_of_tests: list[list[tuple[CloudRegion, CloudRegion]]]
+        batches_of_tests: list[list[tuple[Region, Region]]]
         while True:
             if max_batches < math.inf:
                 batches_of_regions_trunc = batches_of_regions[:max_batches]
             else:
                 batches_of_regions_trunc = batches_of_regions
-            batches_of_tests: list[list[tuple[CloudRegion, CloudRegion]]]
+            batches_of_tests: list[list[tuple[Region, Region]]]
             batches_of_tests = __make_test_batches(
                 batches_of_regions_trunc, cloudpairs, min_distance, max_distance
             )
@@ -95,7 +95,7 @@ def __arrange_in_testbatches(
                 break
 
     logging.info(
-        f"Will run %d tests in %d batches%s",
+        f"%d tests in %d batches%s",
         sum(len(b1) for b1 in batches_of_tests),
         len(batches_of_tests),
         ""
@@ -105,7 +105,7 @@ def __arrange_in_testbatches(
     return batches_of_tests
 
 
-def __ascending_freq_keyfunc() -> Callable[[CloudRegion], int]:
+def __ascending_freq_keyfunc() -> Callable[[Region], int]:
     """:return a function that will allow sorting in ascending order of freq of appearance
     of a CloudRegion in post runs"""
     results: list[dict] = load_history()
@@ -122,13 +122,13 @@ def __ascending_freq_keyfunc() -> Callable[[CloudRegion], int]:
 
     counts = collections.Counter(regions_from_results)
 
-    def key_func(region: CloudRegion) -> int:
+    def key_func(region: Region) -> int:
         return counts[region]
 
     return key_func
 
 
-def __sort_regions(regions: list[CloudRegion], interleave: bool):
+def __sort_regions(regions: list[Region], interleave: bool):
     by_clouds = []
     # First sort puts regions in order of Cloud first (AWS, GCP),
     # then in order of region, e.g., us, sa, northamerican eu, au, asia, af,
@@ -163,7 +163,7 @@ def __max_possible(max_batches, num_regions, regions_per_batch):
 
 
 def __make_test_batches(
-    batches_of_regions: list[list[CloudRegion]],
+    batches_of_regions: list[list[Region]],
     cloudpairs: list[tuple[Cloud, Cloud]],
     min_distance: Union[int, float],
     max_distance: Union[int, float],
@@ -216,11 +216,11 @@ def __make_test_batches(
 
 def __parse_region_pairs(
     region_pairs: str,
-) -> Optional[list[tuple[CloudRegion, CloudRegion]]]:
+) -> Optional[list[tuple[Region, Region]]]:
     if not region_pairs:
         return None
 
-    def parse_region(s: str) -> CloudRegion:
+    def parse_region(s: str) -> Region:
         cloud_and_region = s.split(".")
         if len(cloud_and_region) != 2:
             raise ValueError(f"{s} is not a dot-separated cloud-region string")
@@ -232,7 +232,9 @@ def __parse_region_pairs(
     badly_formed = [p for p in test_pairs if len(p) != 2]
     if badly_formed:
         raise ValueError(
-            f"{pairs_s} is not comma-separated cloud-region pairs, each pair semi-colon-separated: See {badly_formed}"
+            f"Not comma-separated cloud-region pairs, each pair semi-colon-separated; "
+            f"Correct format is AWS.us-east-1,GCP.us-central1;GCP.US-central1,AWS.us-east-1\n"
+            f"Incorrect value was {region_pairs}"
         )
     pairs_regions = [(parse_region(p[0]), parse_region(p[1])) for p in test_pairs]
     return pairs_regions
@@ -249,18 +251,18 @@ def __command_line_args():
         "and pairs are separated by semicolon, "
         "as for example: AWS.us-east-1,AWS.us-east-2;AWS.us-west-1,GCP.us-west3. "
         "\nIf this is used, the other flags are ignored. "
-        '\nNote that  all these specified tests are run simultaneously -- as one "batch" in the terminology of the other flags). '
+        '\nNote that all these specified tests are run simultaneously -- as one "batch" in the terminology of the other flags). '
         "\nIf you want to run multiple batches of specified tests that you specify, run this tool multiple times.",
     )
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=default_batch_sz,
+        default=default_batch_size,
         help="Limits the  number of regions to be tested simultaneously (i.e.,in each batch). "
         "\nEach cross-product combination will be tested with both directions of source/destination "
         "(but without intra-region (self-to-self) pairs). "
         "\nThus, there will be (batch_size * (batch_size-1))  tests in total."
-        '\nDefault is "inf"'
+        f'\nDefault is "{default_batch_size}"'
         "\nIf batch_size=inf, there will be 2070 tests across 46 regions (assuming default enablement of AWS regions). "
         "This is the fastest and most efficient, but means running 46 (very cheap) instances (for under 10 minutes). "
         "\nThe parameter is ignored if --region_pairs is used.",
@@ -272,7 +274,7 @@ def __command_line_args():
         default=default_max_batches,
         help="Limits the number of batches of regions. "
         "\nTogether with batch_size, this can be used to limit number of tests. "
-        '\nDefault is "inf" and indicates "do all", no maximum number of batches. '
+        f'\nDefault is {default_max_batches}.'
         "\nThe parameter is ignored if --region_pairs is used.",
     )
 
@@ -323,18 +325,13 @@ def __command_line_args():
     if args.cloud and args.clouds:
         raise ValueError("Cannot specify both --cloud and --clouds")
 
-    if (
-
-        bool(args.region_pairs)
-        and
-        bool(
+    if bool(args.region_pairs) and bool(
             args.max_batches != default_max_batches
-            or args.batch_size != default_batch_sz
+            or args.batch_size != default_batch_size
             or args.min_distance != default_min_distance
             or args.max_distance != default_max_distance
             or args.cloud
             or args.clouds
-        )
     ):
         raise ValueError(
             "Cannot specify both --region_pairs and other params: %s", args
@@ -345,7 +342,7 @@ def __command_line_args():
 def __parse_machine_types(machine_types) -> dict[Cloud, str]:
     per_cloud = machine_types.split(";")
     assert all(p.count(",") == 1 for p in per_cloud), (
-        f'For machine_types, expect semicolon-separated pairs of '
+        f"For machine_types, expect semicolon-separated pairs of "
         f'comma-separated Cloud,machine-type, was "%s" machine_types'
     )
     splits = [p.split(",") for p in per_cloud]
@@ -359,9 +356,7 @@ def __machine_types_per_cloud(args) -> dict[Cloud, str]:
     return machine_types
 
 
-def setup_batches() -> tuple[
-    list[list[tuple[CloudRegion, CloudRegion]]], dict[Cloud, str]
-]:
+def setup_batches() -> tuple[list[list[tuple[Region, Region]]], dict[Cloud, str]]:
     args = __command_line_args()
     if args.clouds:
         clouds = [

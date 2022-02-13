@@ -22,18 +22,9 @@ class Cloud(Enum):
 
 __PRIVATE__INIT__ = object()
 
-colocated_gcp_aws_datacenters = [
-    ((Cloud.GCP, "europe-west3"), (Cloud.AWS, "eu-central-1")),
-    ((Cloud.GCP, "asia-northeast1"), (Cloud.AWS, "ap-northeast-1")),
-    ((Cloud.GCP, "asia-northeast2"), (Cloud.AWS, "ap-northeast-3")),
-    ((Cloud.GCP, "asia-northeast3"), (Cloud.AWS, "ap-northeast-2")),
-    ((Cloud.GCP, "asia-southeast1"), (Cloud.AWS, "ap-southeast-1")),
-    ((Cloud.GCP, "australia-southeast1"), (Cloud.AWS, "ap-southeast-2")),
-]
-
 
 @total_ordering
-class CloudRegion:
+class Region:
     def __init__(
         self,
         private_init,
@@ -88,11 +79,11 @@ class CloudRegion:
         return self.region_id == other.region_id and self.cloud == other.cloud
 
 
-__regions: list[CloudRegion]
+__regions: list[Region]
 __regions = []
 
 
-def get_regions() -> list[CloudRegion]:
+def get_regions() -> list[Region]:
     global __regions
 
     if not __regions:
@@ -114,7 +105,7 @@ def get_regions() -> list[CloudRegion]:
             region_id = row["region"]
 
             __regions.append(
-                CloudRegion(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
+                Region(__PRIVATE__INIT__, Cloud(cloud_s), region_id, lat, long)
             )
         fp.close()
     return __regions
@@ -123,7 +114,7 @@ def get_regions() -> list[CloudRegion]:
 def get_region(
     cloud: [Cloud | str],
     region_id: str,
-) -> CloudRegion:
+) -> Region:
     regions = get_regions()
     if isinstance(cloud, str):
         cloud = Cloud(cloud)
@@ -138,11 +129,35 @@ def get_region(
         return ret
 
 
-def interregion_distance(r1: CloudRegion, r2: CloudRegion):
+def __samecity_crosscloud_datacenters() -> list[set[Region, Region]]:
+    return [
+        {get_region(*p[0]), get_region(*p[1])}
+        for p in [
+            ((Cloud.GCP, "europe-west3"), (Cloud.AWS, "eu-central-1")),
+            ((Cloud.GCP, "asia-northeast1"), (Cloud.AWS, "ap-northeast-1")),
+            ((Cloud.GCP, "asia-northeast2"), (Cloud.AWS, "ap-northeast-3")),
+            ((Cloud.GCP, "asia-northeast3"), (Cloud.AWS, "ap-northeast-2")),
+            ((Cloud.GCP, "asia-southeast1"), (Cloud.AWS, "ap-southeast-1")),
+            ((Cloud.GCP, "australia-southeast1"), (Cloud.AWS, "ap-southeast-2")),
+        ]
+    ]
+
+
+def interregion_distance(r1: Region, r2: Region):
     ret = geopy.distance.distance((r1.lat, r1.long), (r2.lat, r2.long)).km
-    assert {r1, r2} in [
-        {get_region(*p[0]), get_region(*p[1])} for p in colocated_gcp_aws_datacenters
-    ] or (r1 == r2) == (
-        ret == 0
-    ), f"Expect 0 km if and only if same region unless different cloud's regions are known to have the same coordinates: Regions {r1}, {r2}"
+    if ret == 0:
+        if r1 == r2:
+            pass  # Test within a single cloud's region. Use 0 though in fact a region can be spread out.
+        else:
+            if {r1, r2} in __samecity_crosscloud_datacenters():
+                # Where we have identical coordinates for cross-cloud data-centers, it
+                # means that a city's coordinates were used as an approximation.
+                # We use 10 as an approximation for intra-city distance to avoid divide-by-zero errors.
+                ret = 10
+            else:
+                assert False, (
+                    f"Should not have zero distance for region "
+                    f"pair unless these are known same-city data-centers {r1},{r2}"
+                )
+
     return ret

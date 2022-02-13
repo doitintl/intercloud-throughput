@@ -6,7 +6,7 @@ import random
 import string
 from threading import Lock
 from time import time
-from typing import Union
+from typing import Union, Iterable, Any
 
 import numpy as np
 
@@ -15,6 +15,14 @@ from util import subprocesses
 __gcp_default = None
 
 thread_timeout = 5 * 60
+
+
+def init_logger():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(threadName)s %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
 
 def set_cwd():
@@ -48,10 +56,20 @@ def random_id():
     vowel = "aeiou"
     cons = list(filter(lambda l: l not in vowel, string.ascii_lowercase))
     k = 3
-    consonants = random.choices(cons, k=k)
-    vowels = random.choices(vowel, k=k)
-    s = ["".join(i) for i in zip(consonants, vowels)]
-    return "".join(s)
+    return __random_id(vowel, cons, k)
+
+
+def random_id2():
+    letters = string.ascii_lowercase
+    digits = "0123456789"
+    k = 3
+    return __random_id(letters, digits, k)
+
+
+def __random_id(chars1, chars2, k):
+    let = random.choices(chars1, k=k)
+    dig = random.choices(chars2, k=k)
+    return "".join(["".join(i) for i in zip(let, dig)])
 
 
 __gcp_default_project_lock = Lock()
@@ -89,9 +107,7 @@ class Timer(object):
 
     def __exit__(self, type_, value, traceback):
         self.end = time()
-        logging.info(
-            f"Timer {self.description}: {round(self.end - self.start, 1)} seconds"
-        )
+        logging.info(f"{self.description}: {round(self.end - self.start, 1)} s")
 
 
 def date_s():
@@ -108,3 +124,20 @@ def parse_infinity(a: str) -> Union[int, float]:
 def geo_mean(iterable):
     a = np.array(iterable)
     return a.prod() ** (1.0 / len(a))
+
+
+def shallow_flatten(lst: Union[list[Any], tuple[Any]]) -> Iterable[Any]:
+    """Deep-Flatten a list using generators comprehensions."""
+    """Flatten a list using generators comprehensions.
+        Returns a flattened version of list lst.
+    """
+
+    for sublist in lst:
+        if isinstance(sublist, (list, tuple)):
+            for item in sublist:
+                yield item
+        else:
+            yield sublist
+
+
+print(list(shallow_flatten([(1, [1, [5, 6]]), (3, 4), (5, (7, 8))])))

@@ -1,9 +1,12 @@
+import itertools
 import json
 import logging
+import multiprocessing
 import os
 import threading
+import time
 
-from cloud.clouds import CloudRegion, Cloud, basename_key_for_aws_ssh
+from cloud.clouds import Region, Cloud, basename_key_for_aws_ssh
 from history.attempted import write_failed_test
 from history.results import (
     write_results_for_run,
@@ -11,19 +14,146 @@ from history.results import (
     analyze_test_count,
 )
 from test_steps.create_vms import regionpairs_with_both_vms
-
+from util import utils
 from util.subprocesses import run_subprocess
 from util.utils import thread_timeout, Timer
 
 
-def __do_test(
-    run_id, src_dest: tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
-):
-    src, dst = src_dest
-    src_region_, src_vm_info = src
-    dst_region_, dst_vm_info = dst
-    with Timer(f"__do_test:{src_region_},{dst_region_}"):
+class NoneAvailable(Exception):
+    pass
+
+
+def _regiondict_pairs_to_regionlist(
+    pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]]
+) -> list[Region]:
+    region_pairs = [_regiondict_pair_to_region_pair(p) for p in pairs]
+    return list(utils.shallow_flatten(region_pairs))
+
+
+def _regiondict_pair_to_region_pair(
+    p: tuple[tuple[Region, dict], tuple[Region, dict]]
+) -> tuple[Region, Region]:
+    return p[0][0], p[1][0]
+
+
+def _regiondict_pair_to_regionlist(
+    p: tuple[tuple[Region, dict], tuple[Region, dict]]
+) -> list[Region]:
+    region_pair = _regiondict_pair_to_region_pair(p)
+    return list(itertools.chain(region_pair))
+
+
+class Q:
+    def __init__(
+        self,
+        region_pairs_with_valid_vms: list[
+            tuple[tuple[Region, dict], tuple[Region, dict]]
+        ],
+    ):
+        self.__lock = threading.Lock()
+
+        self.__untested: list[tuple[tuple[Region, dict], tuple[Region, dict]]] = list(
+            region_pairs_with_valid_vms
+        )
+
+        self.__now_under_test: list[
+            tuple[tuple[Region, dict], tuple[Region, dict]]
+        ] = []
+
+    def num_untested(self):
+        self.__lock.acquire()
         try:
+            return len(self.__untested)
+        finally:
+            self.__lock.release()
+
+    def is_done(self):
+        self.__lock.acquire()
+        try:
+            none_left = not self.__untested
+            none_still_under_test = not self.__now_under_test
+            return none_left and none_still_under_test
+
+        finally:
+            self.__lock.release()
+
+    def __get_suitable_pair(
+        self,
+    ) -> tuple[tuple[Region, dict], tuple[Region, dict]]:
+        self.__lock.acquire()
+        ret = None
+        try:
+            intest: list[Region] = _regiondict_pairs_to_regionlist(
+                self.__now_under_test
+            )
+            for potential_testee in self.__untested:
+                potential_testee_regionlist = _regiondict_pair_to_regionlist(
+                    potential_testee
+                )
+                assert len(potential_testee_regionlist) == 2
+                if all(r not in intest for r in potential_testee_regionlist):
+                    self.__now_under_test.append(potential_testee)
+                    self.__untested.remove(potential_testee)
+                    ret = potential_testee
+                    break
+
+            return ret  # Can be none if none testable
+        finally:
+            self.__lock.release()
+
+    def blocking_dequeue_one(self) -> tuple[tuple[Region, dict], tuple[Region, dict]]:
+        while True:
+            src_dest = self.__get_suitable_pair()
+            if src_dest is None and self.num_untested():
+                logging.info(
+                    f"cannot find a pair not currently in use among the "
+                    f"{self.num_untested()} not yet tested ({len(self.__now_under_test)} are under test); will retry"
+                )
+                time.sleep(5)
+                continue
+            else:
+                if not self.num_untested():
+                    logging.info("done because queue is empty.")
+                else:
+                    assert (
+                        src_dest
+                    ), f"{threading.current_thread().name}; Q done {self.is_done()}, Untested {self.num_untested()}"
+                    logging.info(
+                        f"Will process {_regiondict_pair_to_region_pair(src_dest)}; {len(self.__untested)} left"
+                    )
+            return src_dest
+
+    def one_test_done(self, src: tuple[Region, dict], dst: tuple[Region, dict]):
+        self.__lock.acquire()
+        try:
+            logging.info(
+                f"One test finished: {_regiondict_pair_to_region_pair((src,dst))}; {len(self.__untested)} left"
+            )
+            self.__now_under_test.remove((src, dst))
+        finally:
+            self.__lock.release()
+
+
+def __deq_tests_and_run(run_id, q: Q):
+    while not q.is_done():
+        with Timer("dequeuing"):
+            src_dest = q.blocking_dequeue_one()
+
+        if src_dest is not None:
+            src, dst = src_dest
+            __do_one_test(src, dst, run_id, q)
+        else:
+            assert not q.num_untested()
+            logging.info("No more untested available, exiting thread")
+            break
+
+
+def __do_one_test(src, dst, run_id, q):
+    with Timer(f"Test {src[0]},{dst[0]}"):
+
+        try:
+            src_region_, src_vm_info = src
+            dst_region_, dst_vm_info = dst
             logging.info("running test from %s to %s", src_region_, dst_region_)
 
             env = {
@@ -71,44 +201,60 @@ def __do_test(
 
             result_j = json.loads(test_result)
             machine_types: dict[Cloud, str] = {
-                r[0].cloud: r[1]["machine_type"] for r in src_dest
+                r[0].cloud: r[1]["machine_type"] for r in (src, dst)
             }
             for c in Cloud:
                 result_j[f"{c.name.lower()}_vm"] = machine_types.get(c)
             write_results_for_run(result_j, run_id, src_region_, dst_region_)
         except Exception as e:
-            logging.error("Exception %s", e)
+            logging.exception(e)
             write_failed_test(src[0], dst[0])
-            raise e
+        finally:
+            q.one_test_done(src, dst)
 
 
 def do_tests(
     run_id: str,
-    region_with_vminfo_pairs: list[
-        tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
-    ],
+    region_with_vminfo_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]],
 ):
     with Timer("do_tests"):
-        region_pairs_with_valid_vms          = regionpairs_with_both_vms(region_with_vminfo_pairs)
+        region_pairs_with_valid_vms = regionpairs_with_both_vms(
+            region_with_vminfo_pairs
+        )
 
         threads = []
 
-        p: tuple[tuple[CloudRegion, dict], tuple[CloudRegion, dict]]
-        for p in region_pairs_with_valid_vms:
-            src, dest = p[0][0], p[1][0]
-            assert all(p[i][1] for i in [0, 1]), "Should have vm info for each %s" % p
-            thread_name = f"{src}-{dest}"
-            logging.info(f"Will run test %s", thread_name)
-            thread = threading.Thread(
-                name=thread_name, target=__do_test, args=(run_id, p)
-            )
-            threads.append(thread)
-            thread.start()
+        p: tuple[tuple[Region, dict], tuple[Region, dict]]
+        q = Q(region_pairs_with_valid_vms)
 
-        for thread in threads:
-            thread.join(timeout=thread_timeout)
-            if thread.is_alive():
-                logging.info("%s timed out", thread.name)
+        # perhaps too many threads
+        thread_count = min(
+            multiprocessing.cpu_count() * 10, len(region_with_vminfo_pairs)
+        )
+        logging.info("Will use %d test threads", thread_count)
+        # This is very much not thread-bound, so
+        for _ in range(thread_count):
+            __start_thread(run_id, threads, q)
+
+        for t in threads:
+            t.join(timeout=thread_timeout)
+            if t.is_alive():
+                logging.info("%s timed out", t.name)
 
         combine_results(run_id)
         analyze_test_count()
+
+
+thread_counter = 0
+
+
+def __start_thread(run_id: str, threads: list[threading.Thread], q: Q):
+    global thread_counter
+    thread_counter += 1
+    thread_name = f"testthread-{thread_counter}"
+    logging.info(f"Will run test-thread %s", thread_name)
+    thread = threading.Thread(
+        name=thread_name, target=__deq_tests_and_run, args=(run_id, q)
+    )
+    threads.append(thread)
+    thread.start()

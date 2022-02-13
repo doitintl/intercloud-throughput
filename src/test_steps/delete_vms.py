@@ -1,13 +1,13 @@
 import logging
 import threading
 
-from cloud.clouds import CloudRegion, Cloud
+from cloud.clouds import Region, Cloud
 from test_steps.create_vms import env_for_singlecloud_subprocess
 from util.subprocesses import run_subprocess
 from util.utils import thread_timeout, Timer
 
 
-def delete_vms(run_id, regions: list[CloudRegion]):
+def delete_vms(run_id, regions: list[Region]):
     with Timer("delete_vms"):
         del_aws_thread = threading.Thread(
             name=f"delete-AWS", target=__delete_aws_vms, args=(run_id, regions)
@@ -28,7 +28,7 @@ def delete_vms(run_id, regions: list[CloudRegion]):
 def __delete_aws_vms(run_id, regions):
     with Timer("__delete_aws_vms"):
 
-        def delete_aws_vm(aws_cloud_region: CloudRegion):
+        def delete_aws_vm(aws_cloud_region: Region):
             assert aws_cloud_region.cloud == Cloud.AWS, aws_cloud_region
             logging.info(
                 "Will delete EC2 VMs from run-id %s in %s", run_id, aws_cloud_region

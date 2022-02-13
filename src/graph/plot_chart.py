@@ -22,11 +22,6 @@ from cloud.clouds import interregion_distance, get_region, Cloud
 from history.results import load_history, results_dir, perftest_resultsdir_envvar
 from util.utils import set_cwd
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-)
 
 mega = 1e6
 bitrate_legend_loc = "upper right"
@@ -57,9 +52,11 @@ def __log_mean_ratios(clouddata):
     bitrate_s = "Mean of avg RTT/dist\n"
     for cloudpair, data in clouddata.items():
         dist = data["distance"]
+        if not dist:
+            continue
         bitrate = data["bitrate_Bps"]
         avg_rtt = data["avgrtt"]
-
+        assert len(dist)==len(bitrate)== len(avg_rtt)
         mean_bitrate = mean(
             [log10(bitrate[i]) / dist[i] for i in range(len(dist)) if dist[i] != 0]
         )
@@ -248,7 +245,7 @@ def __plot_both_series(
         rtt_ax,
         avg_rtt_legend_loc,
         reds[j],
-        unit="seconds",
+        unit="ms",
         bottom=0,
         top=300,
         semilogy=False,
