@@ -18,7 +18,7 @@ from history.attempted import without_already_succeeded, write_attempted_tests
 from history.results import load_history
 from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
-from test_steps.do_test import do_tests
+from test_steps.do_test import do_batch
 from test_steps.utils import unique_regions
 from util.utils import chunks, parse_infinity
 
@@ -30,17 +30,13 @@ default_machine_types = "AWS,t3.nano;GCP,e2-small"
 
 
 def batch_setup_test_teardown(
-    region_pairs: list[tuple[Region, Region]],
-    run_id,
-    machine_types: dict[Cloud, str],
+    run_id, region_pairs: list[tuple[Region, Region]], machine_types: dict[Cloud, str]
 ):
-    write_attempted_tests(region_pairs, machine_types)
-    logging.info("Tests: %s", region_pairs)
-
+    logging.info("Tests in batch: %s", region_pairs)
+    write_attempted_tests(run_id, region_pairs, machine_types)
     # VMs will still be cleaned up if launch or tests fail
     vm_region_and_address_infos = create_vms(region_pairs, run_id, machine_types)
-    logging.info(vm_region_and_address_infos)
-    do_tests(run_id, vm_region_and_address_infos)
+    do_batch(run_id, vm_region_and_address_infos)
     delete_vms(run_id, unique_regions(region_pairs))
 
 
@@ -274,7 +270,7 @@ def __command_line_args():
         default=default_max_batches,
         help="Limits the number of batches of regions. "
         "\nTogether with batch_size, this can be used to limit number of tests. "
-        f'\nDefault is {default_max_batches}.'
+        f"\nDefault is {default_max_batches}."
         "\nThe parameter is ignored if --region_pairs is used.",
     )
 
@@ -326,12 +322,12 @@ def __command_line_args():
         raise ValueError("Cannot specify both --cloud and --clouds")
 
     if bool(args.region_pairs) and bool(
-            args.max_batches != default_max_batches
-            or args.batch_size != default_batch_size
-            or args.min_distance != default_min_distance
-            or args.max_distance != default_max_distance
-            or args.cloud
-            or args.clouds
+        args.max_batches != default_max_batches
+        or args.batch_size != default_batch_size
+        or args.min_distance != default_min_distance
+        or args.max_distance != default_max_distance
+        or args.cloud
+        or args.clouds
     ):
         raise ValueError(
             "Cannot specify both --region_pairs and other params: %s", args

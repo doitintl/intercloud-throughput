@@ -76,14 +76,17 @@ single cloud.
 
 ## How it works
 
-* Launches a VM in each specified region. See above on how regions are chosen.
+1. Launches a VM in each specified region. See above on how regions are chosen.
   * This is parallelized.
-* Runs a test between each directed region pair, in parallel. In general, all pairs across 
-regions where there is a VM are used, though you can also specific this with the `--region_pairs` option.
-  * This is parallelized, but  a given region is involved in only
-  one test at any one time, to avoid disrupting the results. A queue is used for that.
-* Deletes all VMs (even if some tests fail).
-  * AWS VMs are deletd in parallel, GCP VMs sequentially. 
+2. Runs a test between each directed region pair. 
+  * All pairs across regions where there is a VM are tested.
+    * You can override this with the `--region_pairs` option.
+    * Tests are run in parallel, but  a given region is involved in only
+    one test at any one time, to avoid disrupting the results.  
+3. Deletes all VMs 
+  * Regardless of how many tests succeed or fail).
+  * Deletion of AWS and GCP VMs are deleted in separate threads, in parallem
+  * AWS VMs are deleted in parallel with each other, GCP VMs sequentially with each other. 
 
 ## Generating charts
 

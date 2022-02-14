@@ -77,23 +77,27 @@ def write_failed_test(src: Region, dst: Region):
         f.write(entry)
 
 
-def write_attempted_tests(region_pairs_about_to_try: list[tuple[Region, Region]], machine_types):
-    attempts = __already_attempted()
+def write_attempted_tests(
+    run_id: str, region_pairs_about_to_try: list[tuple[Region, Region]], machine_types
+):
+    attempts: list[dict] = __already_attempted()
     for pair in region_pairs_about_to_try:
         d = {
             "timestamp": date_s(),
+            "run_id": run_id,
             "from_cloud": pair[0].cloud,
             "from_region": pair[0].region_id,
             "to_cloud": pair[1].cloud,
             "to_region": pair[1].region_id,
         }
+
         for c in Cloud:
             d[f"{c.name.lower()}_vm"] = machine_types.get(c)
 
-        attempts.append(d )
+        attempts.append(d)
 
     if attempts:
-        keys = list(attempts[0].keys())
+        keys = list(attempts[len(attempts) - 1].keys())
         f = __attempted_tests_csv_file()
         if not os.path.exists(f):
             Path(os.path.dirname(f)).mkdir(parents=True, exist_ok=True)

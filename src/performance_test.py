@@ -16,7 +16,7 @@ def main():
     logging.info("Run ID is %s", run_id)
 
     for batch in batches:
-        batching.batch_setup_test_teardown(batch, run_id, machine_types)
+        batching.batch_setup_test_teardown(run_id, batch, machine_types)
 
     graph_full_testing_history()
 

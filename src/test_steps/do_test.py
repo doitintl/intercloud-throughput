@@ -1,10 +1,10 @@
 import itertools
 import json
 import logging
-import multiprocessing
 import os
 import threading
 import time
+from math import sqrt
 
 from cloud.clouds import Region, Cloud, basename_key_for_aws_ssh
 from history.attempted import write_failed_test
@@ -16,7 +16,7 @@ from history.results import (
 from test_steps.create_vms import regionpairs_with_both_vms
 from util import utils
 from util.subprocesses import run_subprocess
-from util.utils import thread_timeout, Timer
+from util.utils import thread_timeout, Timer, dedup
 
 
 class NoneAvailable(Exception):
@@ -106,8 +106,8 @@ class Q:
             src_dest = self.__get_suitable_pair()
             if src_dest is None and self.num_untested():
                 logging.info(
-                    f"cannot find a pair not currently in use among the "
-                    f"{self.num_untested()} not yet tested ({len(self.__now_under_test)} are under test); will retry"
+                    f"can't find a pair not currently under test in "
+                    f"{self.num_untested()} not yet tested. ({len(self.__now_under_test)} now under test); retrying"
                 )
                 time.sleep(5)
                 continue
@@ -213,11 +213,13 @@ def __do_one_test(src, dst, run_id, q):
             q.one_test_done(src, dst)
 
 
-def do_tests(
+def do_batch(
     run_id: str,
     region_with_vminfo_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]],
 ):
     with Timer("do_tests"):
+        assert region_with_vminfo_pairs, "Should not be empty"
+
         region_pairs_with_valid_vms = regionpairs_with_both_vms(
             region_with_vminfo_pairs
         )
@@ -227,10 +229,13 @@ def do_tests(
         p: tuple[tuple[Region, dict], tuple[Region, dict]]
         q = Q(region_pairs_with_valid_vms)
 
-        # perhaps too many threads
-        thread_count = min(
-            multiprocessing.cpu_count() * 10, len(region_with_vminfo_pairs)
+        region_count = len(
+            dedup(_regiondict_pairs_to_regionlist(region_with_vminfo_pairs))
         )
+        # Reduce the contention where there are many regions
+        thread_count =  2 * int(sqrt(region_count))
+        assert thread_count >= 1
+
         logging.info("Will use %d test threads", thread_count)
         # This is very much not thread-bound, so
         for _ in range(thread_count):
@@ -251,10 +256,11 @@ thread_counter = 0
 def __start_thread(run_id: str, threads: list[threading.Thread], q: Q):
     global thread_counter
     thread_counter += 1
-    thread_name = f"testthread-{thread_counter}"
-    logging.info(f"Will run test-thread %s", thread_name)
+    logging.info(f"Will run test-thread %s", f"testthread-{thread_counter}")
     thread = threading.Thread(
-        name=thread_name, target=__deq_tests_and_run, args=(run_id, q)
+        name=f"testthread-{thread_counter}",
+        target=__deq_tests_and_run,
+        args=(run_id, q),
     )
     threads.append(thread)
     thread.start()

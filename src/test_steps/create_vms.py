@@ -16,7 +16,7 @@ def __create_vm(
     machine_type=str,
 ):
     with Timer(f"__create_vm: {cloud_region_}"):
-        logging.info("will launch a VM in %s", cloud_region_)
+        logging.info("will launch a VM")  # reagion name in thread name
         env = env_for_singlecloud_subprocess(run_id_, cloud_region_)
         env["MACHINE_TYPE"] = machine_type
         process_stdout = run_subprocess(cloud_region_.script(), env)
