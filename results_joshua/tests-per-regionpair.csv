@@ -1230,3 +1230,9 @@ count,from_cloud,from_region,to_cloud,to_region
 1,GCP,asia-east1,AWS,eu-west-2
 1,AWS,eu-north-1,AWS,ap-south-1
 1,GCP,southamerica-east1,GCP,asia-northeast2
+1,GCP,northamerica-northeast1,GCP,australia-southeast1
+1,AWS,eu-north-1,GCP,australia-southeast1
+1,GCP,australia-southeast1,GCP,northamerica-northeast1
+1,GCP,australia-southeast1,AWS,eu-north-1
+1,GCP,northamerica-northeast2,GCP,australia-southeast1
+1,GCP,australia-southeast1,GCP,northamerica-northeast2
