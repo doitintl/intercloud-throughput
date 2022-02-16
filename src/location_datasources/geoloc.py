@@ -1,10 +1,7 @@
+import atexit
 import csv
 import json
 import os
-import tempfile
-
-from util.utils import set_cwd
-import atexit
 
 
 def in_already(row, rows):

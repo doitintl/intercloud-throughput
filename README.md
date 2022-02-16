@@ -11,7 +11,6 @@ Other cloud performance test benchmarks are available, but
 * Most focus on latency, not throughput
 * Most are in a single cloud.
 
-
 ## Prerequisites
 
 * Python 3.9
@@ -55,7 +54,7 @@ Other cloud performance test benchmarks are available, but
         * You can limit which cloud-pairs can be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP)
         * You can limit the minimum and maximum distance between source and destinationd data-center, e.g. if you want
           to focus on long-distance networking.
-    * You can specify the instance (machine) type to use in each of AWS and GCP. 
+    * You can specify the instance (machine) type to use in each of AWS and GCP.
 
 * Costs
     * Launching an instance in every region does not cost much: These small instances cost 0.5 - 2 cents per hour.
@@ -65,18 +64,18 @@ Other cloud performance test benchmarks are available, but
 
 ## Locations of Data Centers
 
-The distances are based on data-center locations gathered from various open sources.
-Though the cloud providers don’t publicize the exact locations, these are not a secret either.
+The distances are based on data-center locations gathered from various open sources. Though the cloud providers don’t
+publicize the exact locations, these are not a secret either.
 
-These  locations should not be taken as exact. Each region is spread across multiple
-(availability) zones, which in some cases are separated from each other by tens of kilometers, 
-for robustness.  (See [Wikileaks](https://wikileaks.org/amazon-atlas/map/), 
-which clearly illustrates that.) City-center coordinates are used as an approximation. 
+These locations should not be taken as exact. Each region is spread across multiple
+(availability) zones, which in some cases are separated from each other by tens of kilometers, for robustness.  (
+See [Wikileaks](https://wikileaks.org/amazon-atlas/map/), which clearly illustrates that.) City-center coordinates are
+used as an approximation.
 
-Yet given the speeds measured here, statistics that rely on approximate region location 
-are precise enough that any error is swallowed inside other variations of network behavior.
+Yet given the speeds measured here, statistics that rely on approximate region location are precise enough that any
+error is swallowed inside other variations of network behavior.
 
-See directory `geoloc_data` for the data sources. The  raw data is combined into  
+See directory `geoloc_data` for the data sources. The raw data is combined into  
 `locations.csv`  by running `src/location_datasources/combine.py`
 
 ## Output

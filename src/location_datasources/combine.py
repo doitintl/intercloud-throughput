@@ -1,7 +1,6 @@
 import csv
 import glob
 import itertools
-import os
 from statistics import median, mean, stdev, variance
 
 from location_datasources import yugabyte, sunshower, geoloc
