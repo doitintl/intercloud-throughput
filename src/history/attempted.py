@@ -60,17 +60,17 @@ def write_missing_regions(
             f.write(entry)
 
 
-def write_failed_test(src: Region, dst: Region):
+def write_failed_test(run_id:str, src: Region, dst: Region):
     output_filename = f"{results_dir}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
-    entry = f"{date_s()},{src.cloud},{src.region_id}," f"{dst.cloud},{dst.region_id}\n"
+    entry = f"{date_s()},{run_id},{src.cloud},{src.region_id}," f"{dst.cloud},{dst.region_id}\n"
 
     with open(output_filename, "a") as f:
         if write_hdr:
             f.write(
                 ",".join(
-                    ["timestamp", "from_cloud", "from_region", "to_cloud", "to_region"]
+                    ["timestamp", "run_id","from_cloud", "from_region", "to_cloud", "to_region"]
                 )
                 + "\n"
             )

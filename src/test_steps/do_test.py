@@ -208,7 +208,7 @@ def __do_one_test(src, dst, run_id, q):
             write_results_for_run(result_j, run_id, src_region_, dst_region_)
         except Exception as e:
             logging.exception(e)
-            write_failed_test(src[0], dst[0])
+            write_failed_test(run_id, src[0], dst[0])
         finally:
             q.one_test_done(src, dst)
 

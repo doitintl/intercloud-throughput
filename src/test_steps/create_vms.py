@@ -93,11 +93,11 @@ def create_vms(
             region_pairs_, vm_region_and_address_infos
         )
 
-        __log_failure_to_create_vm(regionwithvm_pairs, machine_types)
+        __log_failure_to_create_vm(run_id,regionwithvm_pairs, machine_types)
         return regionwithvm_pairs
 
 
-def __log_failure_to_create_vm(
+def __log_failure_to_create_vm(run_id:str,
     regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]],
     machine_types: dict[Cloud, str],
 ):
@@ -107,7 +107,7 @@ def __log_failure_to_create_vm(
         logging.error(
             "Failed because or more VMs was unavailable: Test %s,%s", src_, dst_
         )
-        write_failed_test(src_, dst_)
+        write_failed_test(run_id, src_, dst_)
     missing_regions = region_with_failed_vm(regionwithvm_pairs)
     if missing_regions:
         logging.info(
