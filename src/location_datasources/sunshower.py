@@ -29,7 +29,7 @@ def preprocess():
         keys = list(row.keys())
         rows.append(row)
 
-    with open("./reference_data/data_sources/sunshower-aws-loc.csv", "w") as f:
+    with open("./region_data/data_sources/sunshower-aws.csv", "w") as f:
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(rows)

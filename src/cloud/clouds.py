@@ -88,7 +88,7 @@ def get_regions() -> list[Region]:
 
     if not __regions:
 
-        fp = open(f"./reference_data/locations.csv")
+        fp = open(f"./region_data/locations.csv")
         rdr = csv.DictReader(filter(lambda row_: row_[0] != "#", fp))
         for row in rdr:
 

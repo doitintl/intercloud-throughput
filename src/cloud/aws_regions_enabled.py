@@ -6,7 +6,7 @@ from cloud.clouds import Region, Cloud
 from util.subprocesses import run_subprocess
 
 __cache_ = {}
-__cache_file = "reference_data/enabled_aws_regions_cache.json"
+__cache_file = "region_data/enabled_aws_regions_cache.json"
 
 
 def __cache():

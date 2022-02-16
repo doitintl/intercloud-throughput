@@ -138,6 +138,3 @@ def shallow_flatten(lst: Union[list[Any], tuple[Any]]) -> Iterable[Any]:
                 yield item
         else:
             yield sublist
-
-
-print(list(shallow_flatten([(1, [1, [5, 6]]), (3, 4), (5, (7, 8))])))

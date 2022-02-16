@@ -8,7 +8,7 @@ from math import log10
 from os import mkdir
 from pathlib import Path
 from statistics import mean
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +21,8 @@ from scipy.stats import pearsonr
 from cloud.clouds import interregion_distance, get_region, Cloud
 from history.results import load_history, results_dir, perftest_resultsdir_envvar
 from util.utils import set_cwd
+
+LinAlgError_counter = 0
 
 
 def __statistics(results):
@@ -52,8 +54,8 @@ def __log_mean_ratios(clouddata):
         if not dist:
             continue
         bitrate = data["bitrate_Bps"]
-        avg_rtt = data["avgrtt"]
-        assert len(dist) == len(bitrate) == len(avg_rtt)
+        rtt = data["avgrtt"]
+        assert len(dist) == len(bitrate) == len(rtt)
         mean_bitrate = mean(
             [log10(bitrate[i]) / dist[i] for i in range(len(dist)) if dist[i] != 0]
         )
@@ -63,9 +65,7 @@ def __log_mean_ratios(clouddata):
             round(bitrate_multiplier * mean_bitrate, 1),
         )
 
-        mean_avgrtt = mean(
-            [avg_rtt[j] / dist[j] for j in range(len(dist)) if dist[j] != 0]
-        )
+        mean_avgrtt = mean([rtt[j] / dist[j] for j in range(len(dist)) if dist[j] != 0])
         avgrtt_s += "\t%s: %s\n" % (__cloudpair_s(cloudpair), round(1 / mean_avgrtt, 1))
     logging.info("\n" + bitrate_s + "\n" + avgrtt_s)
 
@@ -104,7 +104,8 @@ def __prepare_data():
     }
     s = ""
     cross_prod = list(itertools.product(Cloud, Cloud))
-    def homogeneous_first(p:tuple[Cloud,Cloud] ):
+
+    def homogeneous_first(p: tuple[Cloud, Cloud]):
         return -1 * int(__homogeneous(p)), str(p)
 
     cross_prod.sort(key=homogeneous_first)
@@ -137,42 +138,41 @@ def __plot_figures(
     for i, (cloudpair, data) in enumerate(data_by_cloudpair.items()):
         if cloudpair is None:
             # TODO The multiplot adds complexity as it sets up multiple code paths down the stack.
-            __plot_figure(i, None, data_by_cloudpair, subdir, multiplot=True)
+            __plot_figure(None, data_by_cloudpair, subdir, multiplot=True)
         else:
-            __plot_figure(i, cloudpair, data_by_cloudpair, subdir, multiplot=False)
+            __plot_figure(cloudpair, data_by_cloudpair, subdir, multiplot=False)
 
     if platform.system() == "Darwin":
         subprocess.call(["open", subdir])
 
 
 def __plot_figure(
-    count: int,
     cloudpair: Optional[tuple[Cloud, Cloud]],
     clouddata: dict[Optional[tuple[Cloud, Cloud]]],
     subdir: str,
     multiplot: bool,
 ):
-
-    dist, avg_rtt, bitrate = [
+    dist, rtt, bitrate = [
         clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
     ]
 
     if not dist:  # No data
         return
 
-    plt.figure(count)
-    fig, base_ax = plt.subplots()
-    avg_rtt_ax = base_ax
+    # fig = plt.figure(count) We use _fig as below
+
+    _fig, base_ax = plt.subplots()
+    rtt_ax = base_ax
     bitrate_ax = base_ax.twinx()
 
     plt.xlabel = "distance"
 
     if not multiplot:
-        _, _ = __plot_both_series(
-            cloudpair, dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot
+        __singleplot_figure(
+            bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rtt_ax
         )
     else:
-        __multiplot_figure(avg_rtt_ax, bitrate_ax, clouddata, cloudpair, multiplot)
+        __multiplot_figure(rtt_ax, bitrate_ax, clouddata)
 
     plt.title(f"{__cloudpair_s(cloudpair)}: Distance to latency & throughput")
 
@@ -185,8 +185,18 @@ def __plot_figure(
 
     plt.show()
 
-def __homogeneous(p:tuple[Any, Any]):
+
+def __singleplot_figure(bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rtt_ax):
+    _, _, plot_linear_rtt, plot_linear_bitrate = __plot_both_series(
+        cloudpair, dist, rtt, bitrate, rtt_ax, bitrate_ax, multiplot
+    )
+    plot_linear_rtt()  # They don't overlap, so no need to adjust
+    plot_linear_bitrate()
+
+
+def __homogeneous(p: tuple[Any, Any]):
     return p[0] == p[1]
+
 
 def __cloudpair_s(pair: tuple[Cloud, Cloud]) -> str:
     if pair is None:
@@ -195,69 +205,152 @@ def __cloudpair_s(pair: tuple[Cloud, Cloud]) -> str:
         return f"{pair[0].name} to {pair[1].name}"
 
 
-def __multiplot_figure(avg_rtt_ax, bitrate_ax, clouddata, _cloudpair_None, multiplot):
-    avg_rtt_legend_loc = "lower right"
-    bitrate_legend_loc = "lower center"
-
-    center_horiz = 0.46
+def __multiplot_figure(
+    rtt_ax, bitrate_ax, clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]
+):
+    leftish_horiz = 0.30
     center_vert = 0.29
-    right = 0.82
-    bitrate_legend_tag_vertical = center_vert
-    bitrate_legend_tag_horiz = center_horiz
-    avg_rtt_legend_tag_vertical = center_vert
-    avg_rtt_legend_tag_horiz = right
+    lowerish = 0.1
+    rightish = 0.73
 
-    avg_rtt_lines = []
-    bitrate_lines = []
+    bitrate_legend_loc_ = "lower right"
+    bitrate_legend_tag_xy = (rightish, center_vert)
+
+    rtt_legend_loc = "lower center"
+    rtt_legend_tag_xy = (leftish_horiz, lowerish)
+
     labels = []
-    assert not _cloudpair_None  # "None" value indicates all data
-    # Don't plot the aggregated values in this disaggregated chart
+    rtt_lines = []
+    bitrate_lines = []
+    plot_linear_rtt_funcs = []
+    plot_linear_bitrate_funcs = []
+
     clouddata = {k: v for k, v in clouddata.items() if k}  #
 
     for j, (cloudpair_, cpair_data) in enumerate(clouddata.items()):
-
-        dist, avg_rtt, bitrate = [
-            clouddata[cloudpair_][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
-        ]
-        if not dist:
-            continue
-        avg_rtt_line, bitrate_line = __plot_both_series(
-            cloudpair_, dist, avg_rtt, bitrate, avg_rtt_ax, bitrate_ax, multiplot
-        )
-        labels.append(__cloudpair_s(cloudpair_))
-        avg_rtt_lines.append(avg_rtt_line)
-        bitrate_lines.append(bitrate_line)
-
-        avg_rtt_ax.legend(avg_rtt_lines, labels, loc=avg_rtt_legend_loc)
-        bitrate_ax.legend(bitrate_lines, labels, loc=bitrate_legend_loc)
-
-        avg_rtt_ax.text(
-            avg_rtt_legend_tag_horiz,
-            avg_rtt_legend_tag_vertical,
-            "avg RTT",
-            transform=avg_rtt_ax.transAxes,
-            fontsize=10,
+        __plot_one_series_in_multiplot(
+            cloudpair_,
+            clouddata,
+            rtt_ax,
+            bitrate_ax,
+            plot_linear_rtt_funcs,
+            plot_linear_bitrate_funcs,
+            rtt_legend_loc,
+            bitrate_legend_loc_,
+            rtt_legend_tag_xy,
+            bitrate_legend_tag_xy,
+            labels,
+            rtt_lines,
+            bitrate_lines,
         )
 
-        bitrate_ax.text(
-            bitrate_legend_tag_horiz,
-            bitrate_legend_tag_vertical,
-            "bitrate",
-            transform=bitrate_ax.transAxes,
-            fontsize=10,
-        )
+    def plot_linear(plotting_funcs):
+        overlapping, not_overlap = __overlap_and_not(plotting_funcs)
+        for i, linear_plot_func in enumerate(overlapping):
+            linear_plot_func(num_overlapping=len(overlapping), overlap_idx=i)  #
+        for linear_plot_func in not_overlap:
+            linear_plot_func()
+
+    plot_linear(plot_linear_rtt_funcs)
+    plot_linear(plot_linear_bitrate_funcs)
+
+
+def __overlap_and_not(funcs: list[Callable[[int], None]]) -> tuple[list, list]:
+    overlap: list[Callable] = []
+    not_overlap: list[Callable] = []
+
+    for f in funcs:
+        for other in funcs:
+
+            def close(p, q, ratio_epsilon):
+                avg = mean([p, q])
+                return abs((p - q) / avg) < ratio_epsilon
+
+            # noinspection PyUnresolvedReferences
+            lines_overlap = close(other.m, f.m, 0.01) and close(other.b, f.b, 0.03)
+            if other is not f and other not in overlap and lines_overlap:
+                overlap.append(other)
+
+    for f in funcs:
+        if f not in overlap:
+            not_overlap.append(f)
+
+    assert len(not_overlap) + len(overlap) == len(
+        funcs
+    ), f"{len(not_overlap)} + {len(overlap)} != {len(funcs)}"
+    return overlap, not_overlap
+
+
+def __plot_one_series_in_multiplot(
+    cloudpair: tuple[Cloud, Cloud],
+    clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]],
+    rtt_ax,
+    bitrate_ax,
+    plot_linear_rtt_funcs_inout: list[Callable],
+    plot_linear_bitrate_funcs_inout: list[Callable],
+    rtt_legend_loc: str,
+    bitrate_legend_loc: str,
+    rtt_legend_tag_xy: tuple[float, float],
+    bitrate_legend_tag_xy: tuple[float, float],
+    labels_inout: list[str],
+    rtt_lines_inout: list[PathCollection],
+    bitrate_lines_inout: list[PathCollection],
+):
+    dist, rtt, bitrate = [
+        clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
+    ]
+    if not dist:
+        return
+    (
+        rtt_line,
+        bitrate_line,
+        plot_linear_rtt,
+        plot_linear_bitrate,
+    ) = __plot_both_series(
+        cloudpair,
+        dist,
+        rtt,
+        bitrate,
+        rtt_ax,
+        bitrate_ax,
+        True,
+    )
+    plot_linear_rtt_funcs_inout.append(plot_linear_rtt)
+    plot_linear_bitrate_funcs_inout.append(plot_linear_bitrate)
+    labels_inout.append(__cloudpair_s(cloudpair))
+    rtt_lines_inout.append(rtt_line)
+    bitrate_lines_inout.append(bitrate_line)
+
+    rtt_ax.legend(rtt_lines_inout, labels_inout, loc=bitrate_legend_loc)
+    bitrate_ax.legend(bitrate_lines_inout, labels_inout, loc=rtt_legend_loc)
+
+    rtt_ax.text(
+        rtt_legend_tag_xy[0],
+        rtt_legend_tag_xy[1],
+        "RTT",
+        transform=rtt_ax.transAxes,
+        fontsize=10,
+    )
+    bitrate_ax.text(
+        bitrate_legend_tag_xy[0],
+        bitrate_legend_tag_xy[1],
+        "bitrate",
+        transform=bitrate_ax.transAxes,
+        fontsize=10,
+    )
 
 
 def __plot_both_series(
     cloudpair: tuple[Cloud, Cloud],
     dist: list,
-    avg_rtt: list,
+    rtt: list,
     bitrate: list,
     rtt_ax,
     bitrate_ax,
     multiplot: bool,
-) -> tuple[PathCollection, PathCollection]:
-
+) -> tuple[
+    PathCollection, PathCollection, Callable[[int], None], Callable[[int], None]
+]:
     bitrate_colors = {
         (Cloud.GCP, Cloud.GCP): "darkred",
         (Cloud.AWS, Cloud.AWS): "darkblue",
@@ -265,37 +358,22 @@ def __plot_both_series(
         (Cloud.AWS, Cloud.GCP): "thistle",
     }
     rtt_colors = {
-        (Cloud.GCP, Cloud.GCP): "darkgreen",
-        (Cloud.AWS, Cloud.AWS): "darkorange",
-        (Cloud.GCP, Cloud.AWS): "peru",
-        (Cloud.AWS, Cloud.GCP): "saddlebrown",
+        (Cloud.GCP, Cloud.GCP): "red",
+        (Cloud.AWS, Cloud.AWS): "blue",
+        (Cloud.GCP, Cloud.AWS): "purple",
+        (Cloud.AWS, Cloud.GCP): "orange",
     }
 
-
     marker = "."
-    marker_size=1
+    marker_size = 1
 
-    avg_rtt_line = __plot_series(
-        "avg RTT",
-        dist,
-        avg_rtt,
-        rtt_ax,
-        "lower right",
-        rtt_colors[cloudpair],
-        unit="ms",
-        bottom=0,
-        top=300,
-        semilogy=False,
-        multiplot=multiplot,
-        marker=marker,
-        marker_size=marker_size
-    )
-    bitrate_line = __plot_series(
-        f"bitrate",
-        dist,
-        bitrate,
-        bitrate_ax,
-        "upper right",
+    bitrate_line, plot_linear_bitrate = __plot_series(
+        cloudpair,
+        series_name=f"bitrate",
+        x=dist,
+        y=bitrate,
+        axis=bitrate_ax,
+        loc="lower right",
         color=bitrate_colors[cloudpair],
         unit="Mbps",
         bottom=1,
@@ -303,12 +381,30 @@ def __plot_both_series(
         semilogy=True,
         multiplot=multiplot,
         marker=marker,
-        marker_size=marker_size
+        marker_size=marker_size,
     )
-    return avg_rtt_line, bitrate_line
+
+    rtt_line, plot_linear_rtt = __plot_series(
+        cloudpair,
+        series_name="RTT",
+        x=dist,
+        y=rtt,
+        axis=rtt_ax,
+        loc="upper right",
+        color=rtt_colors[cloudpair],
+        unit="ms",
+        bottom=0,
+        top=300,
+        semilogy=False,
+        multiplot=multiplot,
+        marker=marker,
+        marker_size=marker_size,
+    )
+    return rtt_line, bitrate_line, plot_linear_rtt, plot_linear_bitrate
 
 
 def __plot_series(
+    cloudpair: tuple[Cloud, Cloud],
     series_name: str,
     x: list,
     y: list,
@@ -321,7 +417,8 @@ def __plot_series(
     semilogy: bool,
     multiplot: bool,
     marker: str,
-marker_size:int) -> PathCollection:
+    marker_size: int,
+) -> tuple[PathCollection, Callable[[int], None]]:
     if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"
@@ -348,47 +445,111 @@ marker_size:int) -> PathCollection:
 
     if not multiplot:
         axis.legend(loc=loc)
-    # __plot_linear_fit(axis, x, y, color, lbl=series_name, semilogy=semilogy)
-    return line
+
+    plot_linear = __calc_linear_fit(
+        cloudpair,
+        axis,
+        x,
+        y,
+        color,
+        series_name=series_name,
+        semilogy=semilogy,
+    )
+
+    return line, plot_linear
 
 
-LinAlgError_counter = 0
+def __calc_linear_fit(
+    cloudpair: tuple[Cloud, Cloud],
+    ax: Axes,
+    distance: list[float],
+    y: list[float],
+    color: str,
+    series_name: str,
+    semilogy: bool,
+) -> Callable[[int], None]:
+    """
+    :return function that actually does the plotting. We do this because
+    we need to gather the different lines (slope m nd intercept b) to compare to
+    see if they overlap, then adjust so that they don't hide each other.
+    Unfortunately this results in some complexity as this function object is passed all
+    the way up the stack.
+    """
+    distance = np.array(distance)
+    y = np.array(y)
 
+    if semilogy:
+        y = np.log10(y)
 
-def __plot_linear_fit(ax: Axes, dist, y, color, lbl=None, semilogy=False):
-    dist_np = np.array(dist)
+    # noinspection PyTupleAssignmentBalance
+    returned = np.polyfit(distance, y, 1, full=True)
+    m, b = returned[0]
+    logging.debug(
+        "%s %s: slope %f intercept %f", __cloudpair_s(cloudpair), series_name, m, b
+    )
+    y_linear = m * distance + b
+    if semilogy:
+        y_linear = np.power(10, y_linear)
 
-    y_np = np.array(y)
-    try:
+    def linear_plot_func(num_overlapping: int = 0, overlap_idx: int = 0):
+        """If num_overlapping is 0, overlap_idx is ignored"""
+        if num_overlapping == 0:
+            assert overlap_idx == 0
+        if num_overlapping > 0:
+            assert overlap_idx < num_overlapping
 
-        # noinspection PyTupleAssignmentBalance
-        returned = np.polyfit(dist_np, y_np, 1, full=True)
-        m, b = returned[0]
+        assert (
+            num_overlapping <= 3
+        ), "Up to 3 are supported (since it is imposssible to draw a huge number of overlapping)"
 
-        logging.info("For %s, slope is %f and intercept is %f", lbl, m, b)
-        if semilogy:
-            plot_func = ax.semilogy
+        if not num_overlapping:
+            y_linear_adjusted = y_linear
         else:
-            plot_func = ax.plot
-        plot_func(
-            dist_np,
-            m * dist_np + b,
-            color=color,
-            linestyle="dashed",
-            label=lbl,
-        )
-    except LinAlgError as lae:
-        global LinAlgError_counter
-        LinAlgError_counter += 1
-        logging.warning("%s: %s and %s", lae, dist_np[:10], y_np[:10])
-        ax.text(
-            2000,
-            3500 - (LinAlgError_counter * 500),
-            f"No linear fit to {lbl} available",
-            fontsize=10,
-            style="italic",
-            bbox={"facecolor": "red", "alpha": 0.5, "pad": 3},
-        )
+            adjustments = []
+            base_adj = 4
+            for i in range(len(y_linear)):
+                if overlap_idx == i % num_overlapping:
+                    if i % (2 * num_overlapping) == overlap_idx:
+                        adj = 0.5 * base_adj
+                    else:
+                        adj = -0.5 * base_adj
+                else:
+                    adj = 0
+
+                adjustments.append(adj)
+            adjustments = np.array(adjustments)
+
+            y_linear_adjusted = y_linear + adjustments
+
+        alpha = 0.5 if overlap_idx else 1
+
+        try:
+            ax.plot(
+                distance,
+                y_linear_adjusted,
+                color=color,
+                linestyle=None,
+                linewidth=3,
+                alpha=alpha,
+                label=series_name,
+            )
+        except LinAlgError as lae:
+            global LinAlgError_counter
+            LinAlgError_counter += 1
+            logging.warning("%s: %s and %s", lae, distance[:10], y[:10])
+            ax.text(
+                2000,
+                3500 - (LinAlgError_counter * 500),
+                f"No linear fit to {series_name} available",
+                fontsize=10,
+                style="italic",
+                bbox={"facecolor": "red", "alpha": 0.5, "pad": 3},
+            )
+
+    linear_plot_func.m = m
+    linear_plot_func.b = b
+
+    return linear_plot_func
 
 
 if __name__ == "__main__":

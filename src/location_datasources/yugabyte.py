@@ -34,7 +34,7 @@ def preprocess():
     except yaml.YAMLError as exc:
         print(exc)
 
-    with open("./reference_data/data_sources/yugabyte-gcp-loc.csv", "w") as f:
+    with open("./region_data/data_sources/yugabyte-gcp.csv", "w") as f:
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(rows)

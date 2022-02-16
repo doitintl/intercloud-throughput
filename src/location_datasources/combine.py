@@ -1,4 +1,5 @@
 import csv
+import glob
 import itertools
 import os
 from statistics import median, mean, stdev, variance
@@ -72,7 +73,7 @@ def __combine():
         "source",
     ]
 
-    with open("./reference_data/locations.csv", "w") as f:
+    with open("./region_data/locations.csv", "w") as f:
         dict_writer = csv.DictWriter(f, keys)
         dict_writer.writeheader()
         dict_writer.writerows(geoloc_list)
@@ -100,9 +101,10 @@ def __data_by_region() -> dict[tuple[str, str], list[dict]]:
         with open(fname) as f:
             return [r for r in (csv.DictReader(filter(lambda row: row[0] != "#", f)))]
 
-    dir_ = "./reference_data/data_sources/"
-    lst = os.listdir(dir_)
-    dicts = [load_csv(dir_ + f) for f in lst]
+    dir_ = "./region_data/data_sources/"
+
+    lst = glob.glob(dir_ + "/*.csv")
+    dicts = [load_csv(f) for f in lst]
     dicts = itertools.chain.from_iterable(dicts)
 
     def keyfunc(d):
@@ -130,3 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    pass

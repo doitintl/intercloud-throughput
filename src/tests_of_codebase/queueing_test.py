@@ -9,7 +9,6 @@ init_logger()
 
 
 def test1():
-
     run_id = random_id()
     t1 = (get_region(Cloud.GCP, "us-east1"), {})
     t2 = (get_region(Cloud.GCP, "us-central1"), {})

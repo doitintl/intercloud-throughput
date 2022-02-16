@@ -1,7 +1,10 @@
 import csv
 import json
+import os
+import tempfile
 
 from util.utils import set_cwd
+import atexit
 
 
 def in_already(row, rows):
@@ -9,7 +12,7 @@ def in_already(row, rows):
 
 
 def preprocess():
-    with open("./reference_data/raw_data/aws-regions-geoloc.json") as f1:
+    with open("./region_data/data_sources/geoloc-aws.json") as f1:
         rows = []
         json_s = f1.read()
 
@@ -33,12 +36,13 @@ def preprocess():
                 rows.append(row)
 
         rows.sort(key=lambda r: r["region"])
-        with open("./reference_data/data_sources/aws-geoloc.csv", "w") as f2:
+        filename = "./region_data/data_sources/geoloc-aws.csv"
+
+        def deltemp():
+            os.remove(filename)
+
+        atexit.register(deltemp)
+        with open("%s" % filename, "w") as f2:
             dict_writer = csv.DictWriter(f2, keys)
             dict_writer.writeheader()
             dict_writer.writerows(rows)
-
-
-if __name__ == "__main__":
-    set_cwd()
-    preprocess()

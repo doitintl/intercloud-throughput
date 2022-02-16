@@ -127,7 +127,7 @@ class Q:
         self.__lock.acquire()
         try:
             logging.info(
-                f"One test finished: {_regiondict_pair_to_region_pair((src,dst))}; {len(self.__untested)} left"
+                f"One test finished: {_regiondict_pair_to_region_pair((src, dst))}; {len(self.__untested)} left"
             )
             self.__now_under_test.remove((src, dst))
         finally:
@@ -233,7 +233,7 @@ def do_batch(
             dedup(_regiondict_pairs_to_regionlist(region_with_vminfo_pairs))
         )
         # Reduce the contention where there are many regions
-        thread_count =  2 * int(sqrt(region_count))
+        thread_count = 2 * int(sqrt(region_count))
         assert thread_count >= 1
 
         logging.info("Will use %d test threads", thread_count)
