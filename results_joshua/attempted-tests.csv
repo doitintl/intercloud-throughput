@@ -1237,3 +1237,5 @@ timestamp,run_id,from_cloud,from_region,to_cloud,to_region,gcp_vm,aws_vm
 2022-02-16T13:28:47.153037Z,alufar,GCP,northamerica-northeast2,GCP,australia-southeast1,e2-small,t3.nano
 2022-02-16T13:28:47.153052Z,alufar,AWS,eu-north-1,GCP,australia-southeast1,e2-small,t3.nano
 2022-02-16T13:28:47.153067Z,alufar,GCP,northamerica-northeast1,GCP,australia-southeast1,e2-small,t3.nano
+2022-02-16T15:05:07.479239Z,uvewud,AWS,eu-central-1,GCP,australia-southeast1,e2-small,t3.nano
+2022-02-16T15:05:07.479269Z,uvewud,GCP,australia-southeast1,AWS,eu-central-1,e2-small,t3.nano

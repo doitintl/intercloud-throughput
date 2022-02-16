@@ -190,7 +190,9 @@ def __singleplot_figure(bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rt
     _, _, plot_linear_rtt, plot_linear_bitrate = __plot_both_series(
         cloudpair, dist, rtt, bitrate, rtt_ax, bitrate_ax, multiplot
     )
+    # noinspection PyArgumentList
     plot_linear_rtt()  # They don't overlap, so no need to adjust
+    # noinspection PyArgumentList
     plot_linear_bitrate()
 
 
@@ -247,7 +249,7 @@ def __multiplot_figure(
     def plot_linear(plotting_funcs):
         overlapping, not_overlap = __overlap_and_not(plotting_funcs)
         for i, linear_plot_func in enumerate(overlapping):
-            linear_plot_func(num_overlapping=len(overlapping), overlap_idx=i)  #
+            linear_plot_func(overlap_idx=i)
         for linear_plot_func in not_overlap:
             linear_plot_func()
 
@@ -487,49 +489,27 @@ def __calc_linear_fit(
     logging.debug(
         "%s %s: slope %f intercept %f", __cloudpair_s(cloudpair), series_name, m, b
     )
-    y_linear = m * distance + b
-    if semilogy:
-        y_linear = np.power(10, y_linear)
 
-    def linear_plot_func(num_overlapping: int = 0, overlap_idx: int = 0):
-        """If num_overlapping is 0, overlap_idx is ignored"""
-        if num_overlapping == 0:
-            assert overlap_idx == 0
-        if num_overlapping > 0:
-            assert overlap_idx < num_overlapping
-
+    def linear_plot_func(overlap_idx: int = 0):
         assert (
-            num_overlapping <= 3
+            overlap_idx < 3
         ), "Up to 3 are supported (since it is imposssible to draw a huge number of overlapping)"
-
-        if not num_overlapping:
-            y_linear_adjusted = y_linear
-        else:
-            adjustments = []
-            base_adj = 4
-            for i in range(len(y_linear)):
-                if overlap_idx == i % num_overlapping:
-                    if i % (2 * num_overlapping) == overlap_idx:
-                        adj = 0.5 * base_adj
-                    else:
-                        adj = -0.5 * base_adj
-                else:
-                    adj = 0
-
-                adjustments.append(adj)
-            adjustments = np.array(adjustments)
-
-            y_linear_adjusted = y_linear + adjustments
+        linewidth = 2
+        adjustment = linewidth + 1
+        b_adjusted = b + adjustment * overlap_idx
+        y_linear = m * distance + b_adjusted
+        if semilogy:
+            y_linear = np.power(10, y_linear)
 
         alpha = 0.5 if overlap_idx else 1
 
         try:
             ax.plot(
                 distance,
-                y_linear_adjusted,
+                y_linear,
                 color=color,
                 linestyle=None,
-                linewidth=3,
+                linewidth=linewidth,
                 alpha=alpha,
                 label=series_name,
             )
