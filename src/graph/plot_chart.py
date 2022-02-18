@@ -3,7 +3,6 @@ import logging
 import os
 import platform
 import subprocess
-from datetime import datetime
 from math import log10
 from os import mkdir
 from pathlib import Path
@@ -20,7 +19,9 @@ from scipy.stats import pearsonr
 
 from cloud.clouds import interregion_distance, get_region, Cloud
 from history.results import load_history, results_dir, perftest_resultsdir_envvar
+from util import utils
 from util.utils import set_cwd, process_starttime, process_starttime_iso
+
 
 def __statistics(results):
     def extract(key):
@@ -182,7 +183,7 @@ def __plot_figure(
 
 
 def __singleplot_figure(bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rtt_ax):
-    _, _, plot_linear_rtt_func, plot_linear_bitrate_func = __plot_both_series(
+    plot_linear_rtt_func, plot_linear_bitrate_func = __plot_both_series(
         cloudpair, dist, rtt, bitrate, rtt_ax, bitrate_ax, multiplot
     )
     # noinspection PyArgumentList
@@ -220,9 +221,7 @@ def __multiplot_figure(
     rtt_legend_loc = "lower center"
     rtt_legend_tag_xy = (leftish_horiz, lowerish)
 
-    labels = []
-    rtt_lines = []
-    bitrate_lines = []
+    cloudpair_strs = []
     plot_linear_rtt_funcs = []
     plot_linear_bitrate_funcs = []
 
@@ -230,12 +229,7 @@ def __multiplot_figure(
 
     for j, (cloudpair, cpair_data) in enumerate(clouddata.items()):
         try:
-            (
-                rtt_line,
-                bitrate_line,
-                plot_linear_rtt,
-                plot_linear_bitrate,
-            ) = __plot_one_series_in_multiplot(
+            (plot_linear_rtt, plot_linear_bitrate,) = __plot_one_series_in_multiplot(
                 cloudpair,
                 clouddata,
                 rtt_ax,
@@ -245,58 +239,58 @@ def __multiplot_figure(
             continue
         plot_linear_rtt_funcs.append(plot_linear_rtt)
         plot_linear_bitrate_funcs.append(plot_linear_bitrate)
-        labels.append(__cloudpair_s(cloudpair))
-        rtt_lines.append(rtt_line)
-        bitrate_lines.append(bitrate_line)
+        cloudpair_strs.append(__cloudpair_s(cloudpair))
 
-    def plot_linear(plotting_funcs):
+    def plot_linear(plotting_funcs) -> list[list[PathCollection]]:
+        lines: list[list[PathCollection]] = []
+        idx_overlap = 0
         overlapping, not_overlap = __overlap_and_not(plotting_funcs)
-        for i, linear_plot_func in enumerate(overlapping):
-            linear_plot_func(overlap_idx=i)
-        for linear_plot_func in not_overlap:
-            linear_plot_func()
+        for f in plotting_funcs:
+            if f in overlapping:
+                ln = f(overlap_idx=idx_overlap)
+                lines.append(ln)
+                idx_overlap += 1
+            else:
+                ln = f()
+                lines.append(ln)
+        return lines
 
-    plot_linear(plot_linear_rtt_funcs)
-    plot_linear(plot_linear_bitrate_funcs)
+    rtt_lines = plot_linear(plot_linear_rtt_funcs)
+    bitrate_lines = plot_linear(plot_linear_bitrate_funcs)
 
-    __plot_legends_in_multiplot(
-        labels,
+    __plot_legend_in_multiplot(
+        rtt_lines, cloudpair_strs, "RTT", rtt_ax, rtt_legend_loc, rtt_legend_tag_xy
+    )
+    __plot_legend_in_multiplot(
+        bitrate_lines,
+        cloudpair_strs,
+        "bitrate",
         bitrate_ax,
         bitrate_legend_loc,
         bitrate_legend_tag_xy,
-        bitrate_lines,
-        rtt_ax,
-        rtt_legend_loc,
-        rtt_legend_tag_xy,
-        rtt_lines,
     )
 
 
-def __plot_legends_in_multiplot(
-    cloudpairs: list[str],
-    bitrate_ax,
-    bitrate_legend_loc: str,
-    bitrate_legend_tag_xy: tuple[float, float],
-    bitrate_lines: list[PathCollection],
-    rtt_ax,
-    rtt_legend_loc: str,
-    rtt_legend_tag_xy: tuple[float, float],
-    rtt_lines: list[PathCollection],
+def __plot_legend_in_multiplot(
+    lines: list[list[PathCollection]],
+    cloudpair_strs: list[str],
+    series_name: str,
+    ax,
+    legend_loc: str,
+    tag_xy: tuple[float, float],
 ):
-    rtt_ax.legend(rtt_lines, cloudpairs, loc=bitrate_legend_loc)
-    bitrate_ax.legend(bitrate_lines, cloudpairs, loc=rtt_legend_loc)
-    rtt_ax.text(
-        rtt_legend_tag_xy[0],
-        rtt_legend_tag_xy[1],
-        "RTT",
-        transform=rtt_ax.transAxes,
-        fontsize=10,
-    )
-    bitrate_ax.text(
-        bitrate_legend_tag_xy[0],
-        bitrate_legend_tag_xy[1],
-        "bitrate",
-        transform=bitrate_ax.transAxes,
+    assert all(len(lst) == 1 for lst in lines)
+    lines_flat = utils.shallow_flatten(lines)
+
+    ax.legend(
+        lines_flat, cloudpair_strs, loc=legend_loc
+    )  # put legend into plot() in linear plot?
+
+    ax.text(
+        tag_xy[0],
+        tag_xy[1],
+        series_name,
+        transform=ax.transAxes,
         fontsize=10,
     )
 
@@ -336,14 +330,13 @@ def __plot_one_series_in_multiplot(
     clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]],
     rtt_ax,
     bitrate_ax,
-) -> tuple[
-    PathCollection, PathCollection, Callable[[int], PathCollection], Callable[[int], PathCollection]]:
+) -> tuple[Callable[[int], PathCollection], Callable[[int], PathCollection]]:
     dist, rtt, bitrate = [
         clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
     ]
     if not dist:
         raise EmptyDataset
-    return  __plot_both_series(
+    return __plot_both_series(
         cloudpair,
         dist,
         rtt,
@@ -362,9 +355,7 @@ def __plot_both_series(
     rtt_ax,
     bitrate_ax,
     multiplot: bool,
-) -> tuple[
-    PathCollection, PathCollection, Callable[[int], PathCollection], Callable[[int], PathCollection]
-]:
+) -> tuple[Callable[[int], PathCollection], Callable[[int], PathCollection]]:
     bitrate_colors = {
         (Cloud.GCP, Cloud.GCP): "darkred",
         (Cloud.AWS, Cloud.AWS): "darkblue",
@@ -380,7 +371,7 @@ def __plot_both_series(
 
     marker = "."
 
-    bitrate_line, plot_linear_bitrate = __plot_series(
+    plot_linear_bitrate = __plot_series(
         cloudpair,
         series_name=f"bitrate",
         x=dist,
@@ -396,7 +387,7 @@ def __plot_both_series(
         marker=marker,
     )
 
-    rtt_line, plot_linear_rtt = __plot_series(
+    plot_linear_rtt = __plot_series(
         cloudpair,
         series_name="RTT",
         x=dist,
@@ -411,7 +402,7 @@ def __plot_both_series(
         multiplot=multiplot,
         marker=marker,
     )
-    return rtt_line, bitrate_line, plot_linear_rtt, plot_linear_bitrate
+    return plot_linear_rtt, plot_linear_bitrate
 
 
 def __plot_series(
@@ -428,7 +419,7 @@ def __plot_series(
     semilogy: bool,
     multiplot: bool,
     marker: str,
-) -> tuple[PathCollection, Callable[[int], PathCollection]]:
+) -> Callable[[int], PathCollection]:
     if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"
@@ -444,7 +435,7 @@ def __plot_series(
     )  # 20000 km is  half the circumf of earth, and the farthest pairs of data centers are 18000km
     axis.set_ylim(bottom, top)
     marker_size = 3
-    line = axis.scatter(
+    axis.scatter(
         x,
         y,
         color=color,
@@ -457,7 +448,7 @@ def __plot_series(
     if not multiplot:
         axis.legend(loc=loc)
 
-    plot_linear_func = __calc_linear_fit(
+    plot_linear_func = __generate_linear_plot_func(
         cloudpair,
         axis,
         x,
@@ -467,10 +458,10 @@ def __plot_series(
         semilogy=semilogy,
     )
 
-    return line, plot_linear_func
+    return plot_linear_func
 
 
-def __calc_linear_fit(
+def __generate_linear_plot_func(
     cloudpair: tuple[Cloud, Cloud],
     ax: Axes,
     distance: list[float],
@@ -499,7 +490,7 @@ def __calc_linear_fit(
         "%s %s: slope %f intercept %f", __cloudpair_s(cloudpair), series_name, m, b
     )
 
-    def linear_plot_closure(overlap_idx: Optional[int] = None)-> PathCollection:
+    def linear_plot_closure(overlap_idx: Optional[int] = None) -> list[PathCollection]:
         linewidth = 2
         adjustment = linewidth + 1
         if overlap_idx is None:
@@ -513,7 +504,7 @@ def __calc_linear_fit(
             y_linear = np.power(10, y_linear)
 
         try:
-            line=ax.plot(
+            line: list[PathCollection] = ax.plot(
                 distance,
                 y_linear,
                 color=color,
@@ -524,9 +515,8 @@ def __calc_linear_fit(
         except LinAlgError as lae:
             logging.info(
                 f"No linear fit to {series_name} available",
-                
             )
-            raise  lae
+            raise lae
 
     linear_plot_closure.m = m
     linear_plot_closure.b = b

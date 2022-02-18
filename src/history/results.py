@@ -40,7 +40,6 @@ def __results_file():
 def write_results_for_run(
     result_j, run_id: str, src_region_: Region, dst_region_: Region
 ):
-
     res_dir_for_run = __results_dir_for_run(run_id)
     path = Path(res_dir_for_run)
 

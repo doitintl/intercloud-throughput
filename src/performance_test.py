@@ -9,14 +9,12 @@ from util.utils import (
     Timer,
     process_starttime_iso,
     init_logger,
-    process_starttime,
 )
 
 init_logger()
 
 
 def main():
-
     batches, machine_types = batching.setup_batches()
 
     run_id = random_id()
