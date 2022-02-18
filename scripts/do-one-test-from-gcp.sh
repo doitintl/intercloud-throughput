@@ -30,7 +30,7 @@ AVG_RTT=$( echo "${PING_OUTPUT}" | awk -F= '{print $2}' | awk -F/ '{print $2}' )
 export DATE_S
 DATE_S=$( date -u +"%Y-%m-%dT%H:%M:%SZ" )
 
-# The "return value"
+# The "return value" follows. "timestamp" is ignored in favor of process-start time
 jq --null-input -c \
  '{"timestamp": env.DATE_S,
   "run_id": env.RUN_ID,

@@ -10,10 +10,10 @@ from util.utils import thread_timeout, Timer
 def delete_vms(run_id, regions: list[Region]):
     with Timer("delete_vms"):
         del_aws_thread = threading.Thread(
-            name=f"delete-AWS", target=__delete_aws_vms, args=(run_id, regions)
+            name=f"Thread-delete-AWS", target=__delete_aws_vms, args=(run_id, regions)
         )
         del_gcp_thread = threading.Thread(
-            name=f"delete-GCP", target=__delete_gcp_vms, args=(run_id, regions)
+            name=f"Thread-delete-GCP", target=__delete_gcp_vms, args=(run_id, regions)
         )
         del_aws_thread.start()
         del_gcp_thread.start()
@@ -41,7 +41,7 @@ def __delete_aws_vms(run_id, regions):
         del_aws_threads = []
         for cloud_region in aws_regions:
             del_one_aws_region_thread = threading.Thread(
-                name=f"delete-{cloud_region}",
+                name=f"Thread-delete-{cloud_region}",
                 target=delete_aws_vm,
                 args=(cloud_region,),
             )

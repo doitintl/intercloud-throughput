@@ -4,6 +4,7 @@ import math
 import os
 import random
 import string
+from functools import cache
 from threading import Lock
 from time import time
 from typing import Union, Iterable, Any
@@ -110,8 +111,13 @@ class Timer(object):
         logging.info(f"{self.description}: {round(self.end - self.start, 1)} s")
 
 
-def date_s():
-    return datetime.datetime.utcnow().isoformat() + "Z"
+def process_starttime_iso():
+    return process_starttime().isoformat() + "Z"
+
+
+@cache
+def process_starttime():
+    return datetime.datetime.utcnow()
 
 
 def parse_infinity(a: str) -> Union[int, float]:

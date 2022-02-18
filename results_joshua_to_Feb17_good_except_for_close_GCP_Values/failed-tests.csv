@@ -1,0 +1,5 @@
+timestamp,run_id,from_cloud,from_region,to_cloud,to_region
+2022-02-16T15:07:39.720149Z,gegade,AWS,eu-central-1,GCP,australia-southeast1
+2022-02-16T15:08:09.776081Z,gegade,GCP,australia-southeast1,AWS,eu-central-1
+2022-02-16T20:18:00.487397Z,apexaf,AWS,eu-central-1,GCP,australia-southeast12022-02-16T20:25:40.121711Z,oruvep,AWS,eu-central-1,GCP,australia-southeast1
+2022-02-16T20:25:40.121898Z,oruvep,GCP,australia-southeast1,AWS,eu-central-1

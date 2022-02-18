@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import shutil
+from functools import cache
+from pathlib import Path
 from typing import Optional
 
 from cloud.clouds import Region
@@ -13,13 +15,18 @@ perftest_resultsdir_envvar = "PERFTEST_RESULTSDIR"
 
 init_logger()
 
-results_dir = os.environ.get(perftest_resultsdir_envvar, "./results")
-try:
-    os.mkdir(results_dir)
-except FileExistsError:
-    pass
 
-logging.info("Results dir is %s", results_dir)
+@cache
+def results_dir():
+    ret = os.environ.get(perftest_resultsdir_envvar, "./results")
+    ret = os.path.abspath(ret)
+    try:
+        os.mkdir(ret)
+    except FileExistsError:
+        pass
+
+    logging.info("Results dir is %s", ret)
+    return ret
 
 
 def __results_dir_for_run(run_id):
@@ -27,18 +34,19 @@ def __results_dir_for_run(run_id):
 
 
 def __results_file():
-    return f"{results_dir}/results.csv"
+    return f"{results_dir()}/results.csv"
 
 
 def write_results_for_run(
     result_j, run_id: str, src_region_: Region, dst_region_: Region
 ):
-    try:
-        os.mkdir(__results_dir_for_run(run_id))
-    except FileExistsError:
-        pass
+
+    res_dir_for_run = __results_dir_for_run(run_id)
+    path = Path(res_dir_for_run)
+
+    path.mkdir(parents=True, exist_ok=True)
     results_for_one_run_file = (
-        f"{__results_dir_for_run(run_id)}/results-{src_region_}-to-{dst_region_}.json"
+        f"{res_dir_for_run}/results-{src_region_}-to-{dst_region_}.json"
     )
     # We write separate files for each test to avoid race conditions, since tests happen in parallel.
     with open(
@@ -127,7 +135,7 @@ def analyze_test_count():
                 perftest_resultsdir_envvar,
             )
         else:
-            with open(results_dir + "/" + filename, "w") as f:
+            with open(results_dir() + "/" + filename, "w") as f:
                 dict_writer = csv.DictWriter(f, test_counts[0].keys())
                 dict_writer.writeheader()
                 dict_writer.writerows(test_counts)
@@ -167,8 +175,9 @@ def combine_results(run_id: str):
         dicts = load_history()
         filenames = os.listdir(__results_dir_for_run(run_id))
         logging.info(
-            f"Adding %d new results into %d existing results in %s",
+            f"Adding %d new results for %s into %d existing results in %s",
             len(filenames),
+            run_id,
             len(dicts),
             __results_file(),
         )

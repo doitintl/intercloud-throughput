@@ -3,13 +3,20 @@ import logging
 
 from graph.plot_chart import graph_full_testing_history
 from test_steps import batching
-from util.utils import set_cwd, random_id, Timer, date_s, init_logger
+from util.utils import (
+    set_cwd,
+    random_id,
+    Timer,
+    process_starttime_iso,
+    init_logger,
+    process_starttime,
+)
 
 init_logger()
 
 
 def main():
-    logging.info("Started at %s", date_s())
+
     batches, machine_types = batching.setup_batches()
 
     run_id = random_id()
@@ -22,6 +29,7 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.info("Starting at %s", process_starttime_iso())
     with Timer("Full run"):
         set_cwd()
         main()

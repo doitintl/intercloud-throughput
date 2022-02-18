@@ -69,7 +69,7 @@ def create_vms(
         )
         for cloud_region in regions_dedup:
             thread = threading.Thread(
-                name=f"thread-create-{cloud_region}",
+                name=f"Thread-create-{cloud_region}",
                 target=__create_vm,
                 args=(
                     run_id,
@@ -93,11 +93,12 @@ def create_vms(
             region_pairs_, vm_region_and_address_infos
         )
 
-        __log_failure_to_create_vm(run_id,regionwithvm_pairs, machine_types)
+        __log_failure_to_create_vm(run_id, regionwithvm_pairs, machine_types)
         return regionwithvm_pairs
 
 
-def __log_failure_to_create_vm(run_id:str,
+def __log_failure_to_create_vm(
+    run_id: str,
     regionwithvm_pairs: list[tuple[tuple[Region, dict], tuple[Region, dict]]],
     machine_types: dict[Cloud, str],
 ):

@@ -16,7 +16,13 @@ from history.results import (
 from test_steps.create_vms import regionpairs_with_both_vms
 from util import utils
 from util.subprocesses import run_subprocess
-from util.utils import thread_timeout, Timer, dedup
+from util.utils import (
+    thread_timeout,
+    Timer,
+    dedup,
+    process_starttime,
+    process_starttime_iso,
+)
 
 
 class NoneAvailable(Exception):
@@ -106,7 +112,7 @@ class Q:
             src_dest = self.__get_suitable_pair()
             if src_dest is None and self.num_untested():
                 logging.info(
-                    f"can't find a pair not currently under test in "
+                    f"can't find a pair not currently under test among "
                     f"{self.num_untested()} not yet tested. ({len(self.__now_under_test)} now under test); retrying"
                 )
                 time.sleep(5)
@@ -182,9 +188,9 @@ def __do_one_test(src, dst, run_id, q):
                     raise ke
 
             else:
-                raise Exception(
-                    f"Implement {src_region_.cloud} (region {src_region_} to region {dst_region_} )"
-                )
+                assert (
+                    False
+                ), f"Did not implement  tests from this cloud: {src_region_.cloud} (region {src_region_} to region {dst_region_} )"
 
             script = src_region_.script_for_test_from_region()
 
@@ -205,6 +211,8 @@ def __do_one_test(src, dst, run_id, q):
             }
             for c in Cloud:
                 result_j[f"{c.name.lower()}_vm"] = machine_types.get(c)
+            # Ignore timestamp from shellscript, and use process starttime
+            result_j["timestamp"] = process_starttime_iso()
             write_results_for_run(result_j, run_id, src_region_, dst_region_)
         except Exception as e:
             logging.exception(e)
@@ -256,9 +264,10 @@ thread_counter = 0
 def __start_thread(run_id: str, threads: list[threading.Thread], q: Q):
     global thread_counter
     thread_counter += 1
-    logging.info(f"Will run test-thread %s", f"testthread-{thread_counter}")
+    name = f"Test-thread-{thread_counter}"
+    logging.info(f"Will run test-thread %s", name)
     thread = threading.Thread(
-        name=f"testthread-{thread_counter}",
+        name=name,
         target=__deq_tests_and_run,
         args=(run_id, q),
     )

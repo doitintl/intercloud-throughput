@@ -5,11 +5,11 @@ from pathlib import Path
 
 from cloud.clouds import Region, get_region, Cloud
 from history.results import load_history, results_dir
-from util.utils import date_s
+from util.utils import process_starttime_iso
 
 
 def __attempted_tests_csv_file():
-    return f"{results_dir}/attempted-tests.csv"
+    return f"{results_dir()}/attempted-tests.csv"
 
 
 def without_already_succeeded(
@@ -47,7 +47,7 @@ def __results_dict_to_cloudregion_pairs_with_dedup(dicts):
 def write_missing_regions(
     missing_regions: list[Region], machine_types_: dict[Cloud, str]
 ):
-    output_filename = f"{results_dir}/failed-to-create-vm.csv"
+    output_filename = f"{results_dir()}/failed-to-create-vm.csv"
     write_hdr = not os.path.exists(output_filename)
 
     with open(output_filename, "a") as f:
@@ -56,21 +56,33 @@ def write_missing_regions(
         r: Region
         for r in missing_regions:
             machine_type = machine_types_[r.cloud]
-            entry = f"{date_s()},{r.cloud},{r.region_id},{machine_type}\n"
+            entry = (
+                f"{process_starttime_iso()},{r.cloud},{r.region_id},{machine_type}\n"
+            )
             f.write(entry)
 
 
-def write_failed_test(run_id:str, src: Region, dst: Region):
-    output_filename = f"{results_dir}/failed-tests.csv"
+def write_failed_test(run_id: str, src: Region, dst: Region):
+    output_filename = f"{results_dir()}/failed-tests.csv"
     write_hdr = not os.path.exists(output_filename)
 
-    entry = f"{date_s()},{run_id},{src.cloud},{src.region_id}," f"{dst.cloud},{dst.region_id}\n"
+    entry = (
+        f"{process_starttime_iso()},{run_id},{src.cloud},{src.region_id},"
+        f"{dst.cloud},{dst.region_id}\n"
+    )
 
     with open(output_filename, "a") as f:
         if write_hdr:
             f.write(
                 ",".join(
-                    ["timestamp", "run_id","from_cloud", "from_region", "to_cloud", "to_region"]
+                    [
+                        "timestamp",
+                        "run_id",
+                        "from_cloud",
+                        "from_region",
+                        "to_cloud",
+                        "to_region",
+                    ]
                 )
                 + "\n"
             )
@@ -83,7 +95,7 @@ def write_attempted_tests(
     attempts: list[dict] = __already_attempted()
     for pair in region_pairs_about_to_try:
         d = {
-            "timestamp": date_s(),
+            "timestamp": process_starttime_iso(),
             "run_id": run_id,
             "from_cloud": pair[0].cloud,
             "from_region": pair[0].region_id,
