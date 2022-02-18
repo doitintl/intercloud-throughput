@@ -500,16 +500,16 @@ def __generate_linear_plot_func(
             y_linear = np.power(10, y_linear)
 
         try:
-            line: list[PathCollection] = ax.plot(
+            line_list: list[PathCollection] = ax.plot(
                 distance,
                 y_linear,
                 color=color,
                 linewidth=linewidth,
                 label=series_name,
             )
-            return line
+            return line_list
         except LinAlgError as lae:
-            logging.info(
+            logging.error(
                 f"No linear fit to {series_name} available",
             )
             raise lae

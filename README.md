@@ -1,3 +1,4 @@
+
 # Intercloud networking test
 
 ## Purpose
@@ -33,27 +34,32 @@ Other cloud performance test benchmarks are available, but
 * Behavior
     * By default, the system will launch a VM in each region (so, about 47 VMs),  
       then test all directed pairs (source and destination) among these VMs.
-    * The number of total tests is of course _O(n<sup>2</sup>)_),where _n_ is the number of regions.
-    * The number of VMs is as the number of regions. Tests are run between all reahe most efficent tests
-    * Omitted: Already-run test-pairs (as in `results.csv`) are not re-run. This allows you to run the process in
-      several smaller runs, using the options below.
-    * Omitted: Intraregion tests, where the source and destination were the same region, are not run. However, you can
-      specify these using `--region_pairs` (see below).
-    * Prioritization: Where not all possible regions are used (as with options, below, the system will interleave the
-      different clouds in the priority list, to get intercloud tests first; and will choose the least-tested regions, to
-      spread out the testing.)
+    * The number of VMs is as the number of regions. Tests are run between all the region-pairs,
+      to efficently use launched VMs.
+    * You can also limit the tests as you learn the system. 
+    Since tests are not, in the default configuration,
+    repeated, you can achieve full coverage by repeatedly running smaller test runs.
+    * The number of total tests is   _O(n<sup>2</sup>)_),where _n_ is the number of regions.
+    * Omitted: Already-run test-pairs (as listed in `results.csv`) are not re-run.
+    However, you can specify these using `--region_pairs` (see below).
+    * Omitted: Intraregion tests, where the source and destination were the same region, are not run. 
+    However, you can specify these using `--region_pairs` (see below).
+    * Prioritization: If you are running batches of regions gradually, then where  the system is selecting regions to test, 
+     the system will interleave the different clouds in the priority list, to get intercloud tests first; 
+     and will prioritize choose the least-tested regions, to spread out the testing.
 
 * Options
     * Run `performance_test.py --help` for usage instructions.
-    * You can specify exactly which region-pairs to test (source and destination data-centers, whether either can be in
-      AWS or in GCP).
-    * Other options limit the regions-pairs that may be tested, but do not specify the exact list. You can run this
-      repeatedly, accumulating more data in `results.csv`.
-        * You can limit the number of regions tested in a "batch"  (in parallel).
+    * You can run this repeatedly, accumulating more data in `results.csv`.
+    * Options limit the regions-pairs that may be tested, but do not specify the exact list. 
+        * You can limit the number of regions tested in a "batch" (tested together, in parallel).
         * You can limit the number of such batches.
-        * You can limit which cloud-pairs can be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP)
+        * You can limit all testing to just one cloud (e.g., GCP).
+        * You can limit which cloud-pairs can be included (AWS to AWS, GCP to AWS, AWS to GCP, GCP to GCP).
         * You can limit the minimum and maximum distance between source and destinationd data-center, e.g. if you want
           to focus on long-distance networking.
+    * You can specify exactly which region-pairs to test (source and destination data-centers, whether either can be in
+      AWS or in GCP).
     * You can specify the instance (machine) type to use in each of AWS and GCP.
 
 * Costs
@@ -62,7 +68,14 @@ Other cloud performance test benchmarks are available, but
     * Data volume is 10 MB per test.
     * This keeps down the compute and data egress charges.
 
-## Locations of Data Centers
+## Reference data
+
+### Enabled AWS regions
+File `region_data/enabled_aws_regions.json` includes the default list of non-enabled and enabled 
+AWS regions. Delete that file and this tool will automatically detect which regions are
+enabled or not. Only enabled regions participate in the testing.
+
+### Locations of Data Centers
 
 The distances are based on data-center locations gathered from various open sources. Though the cloud providers don’t
 publicize the exact locations, these are not a secret either.
@@ -82,14 +95,17 @@ See directory `geoloc_data` for the data sources. The raw data is combined into
 
 * By default, the output goes under directory `results`.
     * You can change this by setting env variable `PERFTEST_RESULTSDIR`
-* `results.csv`, which accumulates results.
+* `results.csv` accumulates results.
 * Charts are output to `charts` in that directory.
-* For tracking progress
+* For tracking the progress of testing:
     * `attempted-tests.csv` lists attempted tests, even ones that then fail.
     * `failed-to-create-vm.csv` lists cases where a VM could not be created.
-    * `failed-tests.csv` lists failed tests, whether because a VM could not be created or because a connection could not
-      be made between VMs in the different regions.
-    * `tests-per-regionpair.csv` tracks the number of tests per region pair (so we can see if there were repeats).
+    * `failed-tests.csv` lists failed tests, whether  because a connection could not
+      be made between VMs in the different regions or because a VM could not be created 
+      in the first place.
+    * `tests-per-regionpair.csv` tracks the number of tests per region pair 
+     (so we can see if there were repeats, which does not happen unless `__region_pairs` are
+     explicitly specified).
 
 ## How it works
 

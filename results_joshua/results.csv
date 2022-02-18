@@ -2125,3 +2125,15 @@ timestamp,run_id,from_cloud,from_region,to_cloud,to_region,bitrate_Bps,avgrtt,gc
 2022-02-17T12:30:21.798332Z,ekoqaf,AWS,ap-northeast-1,GCP,australia-southeast2,191365120,147.816,e2-small,t3.nano
 2022-02-17T12:30:21.798332Z,ekoqaf,GCP,asia-south2,GCP,asia-southeast2,369098752,81.037,e2-small,
 2022-02-17T12:30:21.798332Z,ekoqaf,AWS,eu-north-1,AWS,ap-south-1,54132736,157.862,,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west3,AWS,us-west-2,200671232.0,42.191,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-west-2,GCP,us-west3,685768704.0,43.391,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-west-2,GCP,us-west4,767295488.0,38.417,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west3,GCP,us-west4,1171914752.0,21.079,e2-small,
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west4,GCP,us-west3,1196687360.0,20.748,e2-small,
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west4,AWS,us-west-2,232390656.0,38.345,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west2,AWS,us-east-2,130154496,67.911,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-east-2,AWS,us-west-1,171311104,50.801,,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,GCP,us-west2,AWS,us-west-1,873857024,11.301,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-west-1,AWS,us-east-2,169476096,51.040,,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-west-1,GCP,us-west2,2073165824,11.455,e2-small,t3.nano
+2022-02-18T09:04:36.176509Z,ugaxit,AWS,us-east-2,GCP,us-west2,435159040,67.774,e2-small,t3.nano

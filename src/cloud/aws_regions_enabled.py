@@ -5,50 +5,51 @@ import os
 from cloud.clouds import Region, Cloud
 from util.subprocesses import run_subprocess
 
-__cache_ = {}
-__cache_file = "region_data/enabled_aws_regions_cache.json"
+__enabled_regions = {}
 
+__enabled_regions_file = "region_data/enabled_aws_regions.json"
 
-def __cache():
-    global __cache_
+def __get_enabled_regions():
+    global __enabled_regions
     if (
-        __cache_
-    ):  # We will alwaysload empty file until we have some values, then we'll have a cache
-        return __cache_
+        __enabled_regions
+    ):  # We will always load empty file until we have some values, then we'll have a cache
+        return __enabled_regions
 
     try:
-        with open(__cache_file) as f:
+        with open(__enabled_regions_file) as f:
             d = json.load(f)
             # Remove comments
             d = {k: v for k, v in d.items() if not k.startswith("__")}
-            __cache_ = d
+            __enabled_regions = d
             logging.info(
                 "Supported AWS Regions as %s",
-                __cache_,
+                __enabled_regions,
             )
 
     except FileNotFoundError:
-        __cache_ = {}
+        __enabled_regions = {}
 
-    return __cache_
+    return __enabled_regions
 
 
-def __add_to_cache(r: str, is_supported: bool):
-    global __cache_
-    __cache_[r] = is_supported
-    __cache_ = dict(sorted(__cache_.items(), key=lambda i: (i[1], i[0])))
-    with open(__cache_file, "w") as f:
-        logging.info("Adding %s, AWS supported region: %s", r, is_supported)
-        json.dump(__cache_, f, indent=2)
+def __add_to_cache(region: str, is_supported: bool):
+    global __enabled_regions
+    __enabled_regions[region] = is_supported
+    #Sort by region and cloud (which is only AWS here)
+    __enabled_regions = dict(sorted(__enabled_regions.items(), key=lambda i: (i[1], i[0])))
+    with open(__enabled_regions_file, "w") as f:
+        logging.info("Adding %s, AWS supported region: %s", region, is_supported)
+        json.dump(__enabled_regions, f, indent=2)
 
 
 def is_nonenabled_auth_aws_region(r: Region):
     if r.cloud != Cloud.AWS:
         return False
 
-    cached_value = __cache().get(r.region_id, None)
-    if cached_value is not None:
-        return not cached_value
+    stored_value = __get_enabled_regions().get(r.region_id, None)
+    if stored_value is not None:
+        return not stored_value
 
     try:
         run_subprocess(

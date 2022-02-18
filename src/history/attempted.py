@@ -15,7 +15,7 @@ def __attempted_tests_csv_file():
 def without_already_succeeded(
     region_pairs: list[tuple[Region, Region]]
 ) -> list[tuple[Region, Region]]:
-    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_history())
+    successful_results = already_succeeded()
     already_attempted = __results_dict_to_cloudregion_pairs_with_dedup(
         __already_attempted()
     )
@@ -30,6 +30,11 @@ def without_already_succeeded(
     )
 
     return no_redo_success
+
+
+def already_succeeded()-> set[tuple[Region, Region]]:
+    successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_history())
+    return successful_results
 
 
 def __results_dict_to_cloudregion_pairs_with_dedup(dicts):

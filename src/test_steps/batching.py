@@ -14,7 +14,7 @@ from cloud.clouds import (
     interregion_distance,
     get_region,
 )
-from history.attempted import without_already_succeeded, write_attempted_tests
+from history.attempted import without_already_succeeded, write_attempted_tests, already_succeeded
 from history.results import load_history
 from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
@@ -40,10 +40,15 @@ def batch_setup_test_teardown(
     delete_vms(run_id, unique_regions(region_pairs))
 
 
+def all_tests_done(regions:list[Region], cloudpairs:Optional[list[tuple[Cloud, Cloud]]]):
+    pairs=filter_crossproduct_regions_by_cloudpair(regions,cloudpairs)
+    succeeded_pairs=already_succeeded()
+    return all(p in succeeded_pairs for p in pairs)
+
+
 def __arrange_in_testbatches(
     regions_per_batch: Union[int, float],
     max_batches: Union[int, float],
-    cloud: Cloud,
     cloudpairs: list[tuple[Cloud, Cloud]],
     preselected_region_pairs: list[tuple[Region, Region]],
     min_distance: Union[int, float],
@@ -58,15 +63,17 @@ def __arrange_in_testbatches(
     else:
         regions = get_regions()
 
-        if cloud:
-            regions = [r for r in regions if cloud == r.cloud]
-
         regions = [r for r in regions if not is_nonenabled_auth_aws_region(r)]
         regions = __sort_regions(regions, bool(cloudpairs))
+        if all_tests_done(regions,cloudpairs):
+            logging.info("Did all possible tests")
+            return []
         batches_of_regions = list(chunks(regions, regions_per_batch))
 
         batches_of_tests: list[list[tuple[Region, Region]]]
+
         while True:
+
             if max_batches < math.inf:
                 batches_of_regions_trunc = batches_of_regions[:max_batches]
             else:
@@ -78,17 +85,21 @@ def __arrange_in_testbatches(
 
             # If no tests are built this way, because all possibilities in these regions have been done,
             # We increase max_batches and try again
-            if not batches_of_tests and not __max_possible(
-                max_batches, len(get_regions()), regions_per_batch
-            ):
+            if batches_of_tests:
+                break
+            elif max_batches>=len(batches_of_regions):
+                logging.info(
+                    "Could not find tests that have not yet been run; exiting"
+                )
+                break
+            else:
                 logging.info(
                     "Made no batches; max was %d. Will retry with bigger max_batches",
                     max_batches,
                 )
                 max_batches += 1
                 continue
-            else:
-                break
+
 
     logging.info(
         f"%d tests in %d batches%s",
@@ -147,16 +158,6 @@ def __sort_regions(regions: list[Region], interleave: bool):
     return regions
 
 
-def __max_possible(max_batches, num_regions, regions_per_batch):
-    """Return True if max_batches is so large that there would be no benefit in increasing it, because
-    The maximum number of directed interregion pairs is less than the number of tests that could be generated
-    given this max_batches and regions_per_batch"""
-    max_tests_that_could_be_allowed = (
-        max_batches * regions_per_batch * (regions_per_batch - 1)
-    )
-    max_tests_possible_for_num_regions = num_regions * (num_regions - 1)
-    return max_tests_that_could_be_allowed > max_tests_possible_for_num_regions
-
 
 def __make_test_batches(
     batches_of_regions: list[list[Region]],
@@ -165,21 +166,9 @@ def __make_test_batches(
     max_distance: Union[int, float],
 ):
     batches_of_tests = []
-    for b in batches_of_regions:
-        region_pairs = list(filter(lambda p: p[0] != p[1], product(b, b)))
-        len_all = len(region_pairs)
-        if cloudpairs:
-            region_pairs = [
-                region_pair
-                for region_pair in region_pairs
-                if (region_pair[0].cloud, region_pair[1].cloud) in cloudpairs
-            ]
-        if len(region_pairs) != len_all:
-            logging.info(
-                "From batch, dropping %d region pairs that were not in the specified list of cloud pairs, leaving %d",
-                len_all - len(region_pairs),
-                len(region_pairs),
-            )
+    for batch in batches_of_regions:
+
+        region_pairs = filter_crossproduct_regions_by_cloudpair(batch, cloudpairs)
 
         len_before_remove_succeeded = len(region_pairs)
         region_pairs = without_already_succeeded(region_pairs)
@@ -208,6 +197,19 @@ def __make_test_batches(
         if region_pairs:  # Might have not valid tests at this point
             batches_of_tests.append(region_pairs)
     return batches_of_tests
+
+
+def filter_crossproduct_regions_by_cloudpair(regions:list[Region], cloudpairs:Optional[list[tuple[Cloud, Cloud]]]):
+    region_pairs = list(filter(lambda p: p[0] != p[1], product(regions, regions)))
+
+    if cloudpairs:#filter to match only those that have thse cloudpairs
+        region_pairs = [
+            region_pair
+            for region_pair in region_pairs
+            if (region_pair[0].cloud, region_pair[1].cloud) in cloudpairs
+        ]
+
+    return region_pairs
 
 
 def __parse_region_pairs(
@@ -275,22 +277,12 @@ def __command_line_args():
     )
 
     parser.add_argument(
-        "--cloud",
-        type=Cloud,
-        default=None,
-        help='"GCP" or "AWS" means ignore tests that use a different cloud. '
-        '\nDefault means "Don\'t ignore any clouds."'
-        "\nCannot be used with --cloud."
-        "\nThe parameter is ignored if --region_pairs is used.",
-    )
-    parser.add_argument(
         "--clouds",
         type=str,
         default="",
         help="Limits selection of tests to these directed cloud pairs."
         "\nComma-separated cloud pairs; multiple such pairs can be separated by semicolons."
-        '\nFor example "GCP,AWS;AWS,GCP" means do only tests that are from GCP to AWS or AWS to GCP'
-        "\nCannot be used with --cloud."
+        '\nFor example "GCP,AWS;AWS,GCP" means do only tests that are from GCP to AWS or AWS to GCP.'
         "\nThe parameter is ignored if --region_pairs is used.",
     )
     parser.add_argument(
@@ -318,15 +310,11 @@ def __command_line_args():
 
     args = parser.parse_args()
 
-    if args.cloud and args.clouds:
-        raise ValueError("Cannot specify both --cloud and --clouds")
-
     if bool(args.region_pairs) and bool(
         args.max_batches != default_max_batches
         or args.batch_size != default_batch_size
         or args.min_distance != default_min_distance
         or args.max_distance != default_max_distance
-        or args.cloud
         or args.clouds
     ):
         raise ValueError(
@@ -365,7 +353,6 @@ def setup_batches() -> tuple[list[list[tuple[Region, Region]]], dict[Cloud, str]
     batches = __arrange_in_testbatches(
         parse_infinity(args.batch_size),
         parse_infinity(args.max_batches),
-        args.cloud,
         clouds,
         __parse_region_pairs(args.region_pairs),
         args.min_distance,
@@ -375,4 +362,5 @@ def setup_batches() -> tuple[list[list[tuple[Region, Region]]], dict[Cloud, str]
     if not batches:
         logging.info("No tests to run that did not already succeeed")
         exit(0)
+
     return batches, __machine_types_per_cloud(args)
