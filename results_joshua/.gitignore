@@ -1,2 +1,5 @@
 charts/
 *.old
+attempted-tests.csv
+failed-tests.csv
+tests-per-regionpair.csv
