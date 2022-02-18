@@ -227,14 +227,62 @@ def __multiplot_figure(
 
     clouddata = {k: v for k, v in clouddata.items() if k}  #
 
+    # noinspection PyUnresolvedReferences
+    def overlap_and_not(
+        funcs: list[Callable[[Optional[int]], list[PathCollection]]]
+    ) -> tuple[set[Callable], set[Callable]]:
+        overlap: set[Callable] = set()
+        not_overlap: set[Callable] = set()
+        for f in funcs:
+            for other in funcs:
+                if other is f:
+                    continue
+
+                def close(p, q, ratio_epsilon):
+                    avg = mean([p, q])
+                    ratio = abs((p - q) / avg)
+                    return ratio < ratio_epsilon
+
+                slope_close = close(other.m, f.m, 0.01)
+                intercept_close = close(other.b, f.b, 0.03)
+                lines_overlap = slope_close and intercept_close
+                if lines_overlap:
+                    overlap.add(other)
+                    overlap.add(f)
+
+        for f in funcs:
+            if f not in overlap:
+                not_overlap.add(f)
+
+        return overlap, not_overlap
+
     for j, (cloudpair, cpair_data) in enumerate(clouddata.items()):
         try:
-            (plot_linear_rtt, plot_linear_bitrate,) = __plot_one_series_in_multiplot(
-                cloudpair,
-                clouddata,
-                rtt_ax,
-                bitrate_ax,
-            )
+
+            def plot_one_series_in_multiplot() -> tuple[
+                Callable[[Optional[int]], list[PathCollection]],
+                Callable[[Optional[int]], list[PathCollection]],
+            ]:
+                dist, rtt, bitrate = [
+                    clouddata[cloudpair][k]
+                    for k in ["distance", "avgrtt", "bitrate_Bps"]
+                ]
+                if not dist:
+                    raise EmptyDataset
+                return __plot_both_series(
+                    cloudpair,
+                    dist,
+                    rtt,
+                    bitrate,
+                    rtt_ax,
+                    bitrate_ax,
+                    True,
+                )
+
+            (
+                plot_linear_rtt,
+                plot_linear_bitrate,
+            ) = plot_one_series_in_multiplot()
         except EmptyDataset:
             continue
         plot_linear_rtt_funcs.append(plot_linear_rtt)
@@ -244,7 +292,7 @@ def __multiplot_figure(
     def plot_linear(plotting_funcs) -> list[list[PathCollection]]:
         lines: list[list[PathCollection]] = []
         idx_overlap = 0
-        overlapping, not_overlap = __overlap_and_not(plotting_funcs)
+        overlapping, not_overlap = overlap_and_not(plotting_funcs)
         for f in plotting_funcs:
             if f in overlapping:
                 ln = f(overlap_idx=idx_overlap)
@@ -258,92 +306,37 @@ def __multiplot_figure(
     rtt_lines = plot_linear(plot_linear_rtt_funcs)
     bitrate_lines = plot_linear(plot_linear_bitrate_funcs)
 
-    __plot_legend_in_multiplot(
-        rtt_lines, cloudpair_strs, "RTT", rtt_ax, rtt_legend_loc, rtt_legend_tag_xy
+    def plot_legend_in_multiplot(
+        lines: list[list[PathCollection]],
+        series_name: str,
+        ax,
+        legend_loc: str,
+        tag_xy: tuple[float, float],
+    ):
+        assert all(len(lst) == 1 for lst in lines)
+        lines_flat = utils.shallow_flatten(lines)
+
+        ax.legend(
+            lines_flat, cloudpair_strs, loc=legend_loc
+        )  # put legend into plot() in linear plot?
+
+        ax.text(
+            tag_xy[0],
+            tag_xy[1],
+            series_name,
+            transform=ax.transAxes,
+            fontsize=10,
+        )
+
+    plot_legend_in_multiplot(
+        rtt_lines, "RTT", rtt_ax, rtt_legend_loc, rtt_legend_tag_xy
     )
-    __plot_legend_in_multiplot(
+    plot_legend_in_multiplot(
         bitrate_lines,
-        cloudpair_strs,
         "bitrate",
         bitrate_ax,
         bitrate_legend_loc,
         bitrate_legend_tag_xy,
-    )
-
-
-def __plot_legend_in_multiplot(
-    lines: list[list[PathCollection]],
-    cloudpair_strs: list[str],
-    series_name: str,
-    ax,
-    legend_loc: str,
-    tag_xy: tuple[float, float],
-):
-    assert all(len(lst) == 1 for lst in lines)
-    lines_flat = utils.shallow_flatten(lines)
-
-    ax.legend(
-        lines_flat, cloudpair_strs, loc=legend_loc
-    )  # put legend into plot() in linear plot?
-
-    ax.text(
-        tag_xy[0],
-        tag_xy[1],
-        series_name,
-        transform=ax.transAxes,
-        fontsize=10,
-    )
-
-
-# noinspection PyUnresolvedReferences
-def __overlap_and_not(
-    funcs: list[Callable[[int], PathCollection]]
-) -> tuple[set[Callable], set[Callable]]:
-    overlap: set[Callable] = set()
-    not_overlap: set[Callable] = set()
-    for f in funcs:
-        for other in funcs:
-            if other is f:
-                continue
-
-            def close(p, q, ratio_epsilon):
-                avg = mean([p, q])
-                ratio = abs((p - q) / avg)
-                return ratio < ratio_epsilon
-
-            slope_close = close(other.m, f.m, 0.01)
-            intercept_close = close(other.b, f.b, 0.03)
-            lines_overlap = slope_close and intercept_close
-            if lines_overlap:
-                overlap.add(other)
-                overlap.add(f)
-
-    for f in funcs:
-        if f not in overlap:
-            not_overlap.add(f)
-
-    return overlap, not_overlap
-
-
-def __plot_one_series_in_multiplot(
-    cloudpair: tuple[Cloud, Cloud],
-    clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]],
-    rtt_ax,
-    bitrate_ax,
-) -> tuple[Callable[[int], PathCollection], Callable[[int], PathCollection]]:
-    dist, rtt, bitrate = [
-        clouddata[cloudpair][k] for k in ["distance", "avgrtt", "bitrate_Bps"]
-    ]
-    if not dist:
-        raise EmptyDataset
-    return __plot_both_series(
-        cloudpair,
-        dist,
-        rtt,
-        bitrate,
-        rtt_ax,
-        bitrate_ax,
-        True,
     )
 
 
@@ -355,7 +348,10 @@ def __plot_both_series(
     rtt_ax,
     bitrate_ax,
     multiplot: bool,
-) -> tuple[Callable[[int], PathCollection], Callable[[int], PathCollection]]:
+) -> tuple[
+    Callable[[Optional[int]], list[PathCollection]],
+    Callable[[Optional[int]], list[PathCollection]],
+]:
     bitrate_colors = {
         (Cloud.GCP, Cloud.GCP): "darkred",
         (Cloud.AWS, Cloud.AWS): "darkblue",
@@ -419,7 +415,7 @@ def __plot_series(
     semilogy: bool,
     multiplot: bool,
     marker: str,
-) -> Callable[[int], PathCollection]:
+) -> Callable[[Optional[int]], list[PathCollection]]:
     if semilogy:
         axis.set_yscale("log")
         ylabel = f"{unit} (log)"
@@ -469,7 +465,7 @@ def __generate_linear_plot_func(
     color: str,
     series_name: str,
     semilogy: bool,
-) -> Callable[[int], PathCollection]:
+) -> Callable[[Optional[int]], list[PathCollection]]:
     """
     :return function that actually does the plotting. We do this because
     we need to gather the different lines (slope m nd intercept b) to compare to
