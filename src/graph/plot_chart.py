@@ -158,9 +158,9 @@ def __plot_figure(
         return
 
     _fig, base_ax = plt.subplots()
-    rtt_ax = base_ax
-    bitrate_ax = base_ax.twinx()
 
+    bitrate_ax = base_ax
+    rtt_ax = base_ax.twinx()
     plt.xlabel = "distance"
 
     if multiplot:
@@ -182,16 +182,6 @@ def __plot_figure(
     plt.show()
 
 
-def __singleplot_figure(bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rtt_ax):
-    plot_linear_rtt_func, plot_linear_bitrate_func = __plot_both_series(
-        cloudpair, dist, rtt, bitrate, rtt_ax, bitrate_ax, multiplot
-    )
-    # noinspection PyArgumentList
-    plot_linear_rtt_func()  # They don't overlap, so no need to adjust
-    # noinspection PyArgumentList
-    plot_linear_bitrate_func()
-
-
 def __homogeneous(p: tuple[Any, Any]):
     return p[0] == p[1]
 
@@ -210,17 +200,6 @@ class EmptyDataset(Exception):
 def __multiplot_figure(
     rtt_ax, bitrate_ax, clouddata: dict[Optional[tuple[Cloud, Cloud]], dict[str, list]]
 ):
-    leftish_horiz = 0.30
-    center_vert = 0.29
-    lowerish = 0.1
-    rightish = 0.73
-
-    bitrate_legend_loc = "lower right"
-    bitrate_legend_tag_xy = (rightish, center_vert)
-
-    rtt_legend_loc = "lower center"
-    rtt_legend_tag_xy = (leftish_horiz, lowerish)
-
     cloudpair_strs = []
     plot_linear_rtt_funcs = []
     plot_linear_bitrate_funcs = []
@@ -285,6 +264,7 @@ def __multiplot_figure(
             ) = plot_one_series_in_multiplot()
         except EmptyDataset:
             continue
+
         plot_linear_rtt_funcs.append(plot_linear_rtt)
         plot_linear_bitrate_funcs.append(plot_linear_bitrate)
         cloudpair_strs.append(__cloudpair_s(cloudpair))
@@ -306,7 +286,27 @@ def __multiplot_figure(
     rtt_lines = plot_linear(plot_linear_rtt_funcs)
     bitrate_lines = plot_linear(plot_linear_bitrate_funcs)
 
-    def plot_legend_in_multiplot(
+    plot_legends(bitrate_ax, bitrate_lines, rtt_ax, rtt_lines, cloudpair_strs)
+
+
+def plot_legends(bitrate_ax, bitrate_lines, rtt_ax, rtt_lines, cloudpair_strs):
+    assert len(cloudpair_strs) == len(bitrate_lines) == len(rtt_lines)
+    if len(cloudpair_strs) == 1:
+        left = 0.14
+        upper = 0.86
+        center_horiz = 0.5
+        lowerish = 0.12
+        bitrate_legend_tag_xy = (left, upper)
+        rtt_legend_tag_xy = (center_horiz, lowerish)
+    else:
+        leftish = 0.3
+        upper = 0.86
+        rightish = 0.67
+        lowerish = 0.12
+        bitrate_legend_tag_xy = (leftish, upper)
+        rtt_legend_tag_xy = (rightish, lowerish)
+
+    def plot_legend(
         lines: list[list[PathCollection]],
         series_name: str,
         ax,
@@ -328,15 +328,13 @@ def __multiplot_figure(
             fontsize=10,
         )
 
-    plot_legend_in_multiplot(
-        rtt_lines, "RTT", rtt_ax, rtt_legend_loc, rtt_legend_tag_xy
-    )
-    plot_legend_in_multiplot(
-        bitrate_lines,
-        "bitrate",
-        bitrate_ax,
-        bitrate_legend_loc,
-        bitrate_legend_tag_xy,
+    bitrate_legend_loc = "upper left"
+
+    rtt_legend_loc = "lower center"
+
+    plot_legend(rtt_lines, "RTT", rtt_ax, rtt_legend_loc, rtt_legend_tag_xy)
+    plot_legend(
+        bitrate_lines, "bitrate", bitrate_ax, bitrate_legend_loc, bitrate_legend_tag_xy
     )
 
 
@@ -367,38 +365,48 @@ def __plot_both_series(
 
     marker = "."
 
-    plot_linear_bitrate = __plot_series(
+    padding = 45 * " "
+    plot_linear_bitrate_func: Callable = __plot_series(
         cloudpair,
         series_name=f"bitrate",
         x=dist,
         y=bitrate,
         axis=bitrate_ax,
-        loc="lower right",
         color=bitrate_colors[cloudpair],
-        unit="Mbps",
+        unit=padding + "Mbps",
         bottom=1,
         top=10000,
         semilogy=True,
-        multiplot=multiplot,
         marker=marker,
     )
 
-    plot_linear_rtt = __plot_series(
+    plot_linear_rtt_func: Callable = __plot_series(
         cloudpair,
         series_name="RTT",
         x=dist,
         y=rtt,
         axis=rtt_ax,
-        loc="upper right",
         color=rtt_colors[cloudpair],
-        unit="ms",
+        unit=padding + "ms",
         bottom=0,
         top=300,
         semilogy=False,
-        multiplot=multiplot,
         marker=marker,
     )
-    return plot_linear_rtt, plot_linear_bitrate
+    return plot_linear_rtt_func, plot_linear_bitrate_func
+
+
+def __singleplot_figure(bitrate, bitrate_ax, cloudpair, dist, multiplot, rtt, rtt_ax):
+    plot_linear_rtt_func, plot_linear_bitrate_func = __plot_both_series(
+        cloudpair, dist, rtt, bitrate, rtt_ax, bitrate_ax, multiplot
+    )
+    # noinspection PyArgumentList
+    rtt_lines = plot_linear_rtt_func()  # They don't overlap, so no need to adjust
+    # noinspection PyArgumentList
+    bitrate_lines = plot_linear_bitrate_func()
+    plot_legends(
+        bitrate_ax, [bitrate_lines], rtt_ax, [rtt_lines], [__cloudpair_s(cloudpair)]
+    )
 
 
 def __plot_series(
@@ -407,13 +415,11 @@ def __plot_series(
     x: list,
     y: list,
     axis,
-    loc: str,
     color: str,
     unit: str,
     bottom: int,
     top: int,
     semilogy: bool,
-    multiplot: bool,
     marker: str,
 ) -> Callable[[Optional[int]], list[PathCollection]]:
     if semilogy:
@@ -440,9 +446,6 @@ def __plot_series(
         alpha=0.2,
         label=f"{series_name}\n(r={round(corr, 2)})",
     )
-
-    if not multiplot:
-        axis.legend(loc=loc)
 
     plot_linear_func = __generate_linear_plot_func(
         cloudpair,

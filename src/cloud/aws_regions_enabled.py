@@ -9,6 +9,7 @@ __enabled_regions = {}
 
 __enabled_regions_file = "region_data/enabled_aws_regions.json"
 
+
 def __get_enabled_regions():
     global __enabled_regions
     if (
@@ -36,8 +37,10 @@ def __get_enabled_regions():
 def __add_to_cache(region: str, is_supported: bool):
     global __enabled_regions
     __enabled_regions[region] = is_supported
-    #Sort by region and cloud (which is only AWS here)
-    __enabled_regions = dict(sorted(__enabled_regions.items(), key=lambda i: (i[1], i[0])))
+    # Sort by region and cloud (which is only AWS here)
+    __enabled_regions = dict(
+        sorted(__enabled_regions.items(), key=lambda i: (i[1], i[0]))
+    )
     with open(__enabled_regions_file, "w") as f:
         logging.info("Adding %s, AWS supported region: %s", region, is_supported)
         json.dump(__enabled_regions, f, indent=2)

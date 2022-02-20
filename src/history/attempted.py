@@ -32,7 +32,7 @@ def without_already_succeeded(
     return no_redo_success
 
 
-def already_succeeded()-> set[tuple[Region, Region]]:
+def already_succeeded() -> set[tuple[Region, Region]]:
     successful_results = __results_dict_to_cloudregion_pairs_with_dedup(load_history())
     return successful_results
 

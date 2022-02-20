@@ -14,7 +14,11 @@ from cloud.clouds import (
     interregion_distance,
     get_region,
 )
-from history.attempted import without_already_succeeded, write_attempted_tests, already_succeeded
+from history.attempted import (
+    without_already_succeeded,
+    write_attempted_tests,
+    already_succeeded,
+)
 from history.results import load_history
 from test_steps.create_vms import create_vms
 from test_steps.delete_vms import delete_vms
@@ -40,9 +44,11 @@ def batch_setup_test_teardown(
     delete_vms(run_id, unique_regions(region_pairs))
 
 
-def all_tests_done(regions:list[Region], cloudpairs:Optional[list[tuple[Cloud, Cloud]]]):
-    pairs=filter_crossproduct_regions_by_cloudpair(regions,cloudpairs)
-    succeeded_pairs=already_succeeded()
+def all_tests_done(
+    regions: list[Region], cloudpairs: Optional[list[tuple[Cloud, Cloud]]]
+):
+    pairs = filter_crossproduct_regions_by_cloudpair(regions, cloudpairs)
+    succeeded_pairs = already_succeeded()
     return all(p in succeeded_pairs for p in pairs)
 
 
@@ -65,7 +71,7 @@ def __arrange_in_testbatches(
 
         regions = [r for r in regions if not is_nonenabled_auth_aws_region(r)]
         regions = __sort_regions(regions, bool(cloudpairs))
-        if all_tests_done(regions,cloudpairs):
+        if all_tests_done(regions, cloudpairs):
             logging.info("Did all possible tests")
             return []
         batches_of_regions = list(chunks(regions, regions_per_batch))
@@ -87,10 +93,8 @@ def __arrange_in_testbatches(
             # We increase max_batches and try again
             if batches_of_tests:
                 break
-            elif max_batches>=len(batches_of_regions):
-                logging.info(
-                    "Could not find tests that have not yet been run; exiting"
-                )
+            elif max_batches >= len(batches_of_regions):
+                logging.info("Could not find tests that have not yet been run; exiting")
                 break
             else:
                 logging.info(
@@ -99,7 +103,6 @@ def __arrange_in_testbatches(
                 )
                 max_batches += 1
                 continue
-
 
     logging.info(
         f"%d tests in %d batches%s",
@@ -158,7 +161,6 @@ def __sort_regions(regions: list[Region], interleave: bool):
     return regions
 
 
-
 def __make_test_batches(
     batches_of_regions: list[list[Region]],
     cloudpairs: list[tuple[Cloud, Cloud]],
@@ -199,10 +201,12 @@ def __make_test_batches(
     return batches_of_tests
 
 
-def filter_crossproduct_regions_by_cloudpair(regions:list[Region], cloudpairs:Optional[list[tuple[Cloud, Cloud]]]):
+def filter_crossproduct_regions_by_cloudpair(
+    regions: list[Region], cloudpairs: Optional[list[tuple[Cloud, Cloud]]]
+):
     region_pairs = list(filter(lambda p: p[0] != p[1], product(regions, regions)))
 
-    if cloudpairs:#filter to match only those that have thse cloudpairs
+    if cloudpairs:  # filter to match only those that have thse cloudpairs
         region_pairs = [
             region_pair
             for region_pair in region_pairs
