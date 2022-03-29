@@ -3,13 +3,18 @@
 ## Purpose
 
 This runs a test of throughput and latency within and between regions in the same or different clouds.
+ 
+## Article
 
+See also the [related article](https://www.doit-intl.com/throughput-metrics-across-the-clouds/).
+ 
 ## What makes this different
 
 Other cloud performance test benchmarks are available, but
 
-* Most focus on latency, not throughput
+* Most focus on latency, not throughput.
 * Most are in a single cloud.
+* This compares throughput to distance.
 
 ## Prerequisites
 
